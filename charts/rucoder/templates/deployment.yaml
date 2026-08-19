@@ -1,0 +1,63 @@
+{{- range $name, $svc := .Values.services }}
+{{- if $svc.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rucoder.fullname" (dict "Chart" $.Chart "Release" $.Release "name" $name) }}
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 8 }}
+    spec:
+      {{- if eq $name "executor" }}
+      serviceAccountName: {{ $.Chart.Name }}-executor
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: "{{ $.Values.global.imageRegistry }}/{{ $.Chart.Name }}-{{ $name }}:{{ $.Values.global.imageTag }}"
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $svc.containerPort | default 8080 }}
+          envFrom:
+            - secretRef:
+                name: {{ $.Chart.Name }}-external
+          {{- if eq $name "repo-manager" }}
+          {{- if $.Values.persistence.repos.enabled }}
+          volumeMounts:
+            - name: repos
+              mountPath: /home/user/.recoder/repos
+          {{- end }}
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+      {{- if eq $name "repo-manager" }}
+      {{- if $.Values.persistence.repos.enabled }}
+      volumes:
+        - name: repos
+          persistentVolumeClaim:
+            claimName: {{ $.Chart.Name }}-repos
+      {{- end }}
+      {{- end }}
+{{- end }}
+{{- end }}

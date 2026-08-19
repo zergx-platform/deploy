@@ -1,0 +1,331 @@
+{{- /* Self-hosted infra with hostPath volumes (single-node). We avoid PV/PVC
+       entirely because the deployer's ServiceAccount has no cluster-scoped
+       PersistentVolume permission. Each service mounts <hostPathRoot>/<name>
+       directly (DirectoryOrCreate). */ -}}
+
+{{- if .Values.infra.postgres.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Chart.Name }}-postgres
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "postgres") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $.Chart.Name }}-postgres
+  ports:
+    - name: pg
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $.Chart.Name }}-postgres
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "postgres") | nindent 4 }}
+spec:
+  serviceName: {{ $.Chart.Name }}-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $.Chart.Name }}-postgres
+  template:
+    metadata:
+      labels:
+        app: {{ $.Chart.Name }}-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.infra.postgres.image }}
+          {{- if $.Values.global.httpProxy }}
+          env:
+            - name: HTTP_PROXY
+              value: {{ $.Values.global.httpProxy | quote }}
+            - name: HTTPS_PROXY
+              value: {{ $.Values.global.httpProxy | quote }}
+            - name: NO_PROXY
+              value: "localhost,127.0.0.1,.svc.cluster.local,.svc"
+            - name: POSTGRES_USER
+              value: {{ .Values.infra.postgres.user | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.infra.postgres.password | quote }}
+          {{- else }}
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.infra.postgres.user | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.infra.postgres.password | quote }}
+          {{- end }}
+          resources:
+            {{- toYaml $.Values.infraResources | nindent 12 }}
+          ports:
+            - name: pg
+              containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: data
+          hostPath:
+            path: {{ .Values.hostPathRoot }}/postgres
+            type: DirectoryOrCreate
+        - name: initdb
+          configMap:
+            name: {{ $.Chart.Name }}-postgres-init
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Chart.Name }}-postgres-init
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "postgres-init") | nindent 4 }}
+data:
+  init.sql: |
+    {{- range $db := .Values.infra.postgres.databases }}
+    CREATE DATABASE {{ $db }};
+    {{- end }}
+{{- end }}
+
+{{- if .Values.infra.nats.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Chart.Name }}-nats
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "nats") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $.Chart.Name }}-nats
+  ports:
+    - name: client
+      port: 4222
+      targetPort: 4222
+    - name: monitor
+      port: 8222
+      targetPort: 8222
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $.Chart.Name }}-nats
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "nats") | nindent 4 }}
+spec:
+  serviceName: {{ $.Chart.Name }}-nats
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $.Chart.Name }}-nats
+  template:
+    metadata:
+      labels:
+        app: {{ $.Chart.Name }}-nats
+    spec:
+      containers:
+        - name: nats
+          image: {{ .Values.infra.nats.image }}
+          args:
+            - "-js"
+            - "-sd"
+            - "/data/jetstream"
+            - "-m"
+            - "8222"
+          resources:
+            {{- toYaml $.Values.infraResources | nindent 12 }}
+          ports:
+            - name: client
+              containerPort: 4222
+            - name: monitor
+              containerPort: 8222
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          hostPath:
+            path: {{ .Values.hostPathRoot }}/nats
+            type: DirectoryOrCreate
+{{- end }}
+
+{{- if .Values.infra.minio.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Chart.Name }}-minio
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "minio") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $.Chart.Name }}-minio
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $.Chart.Name }}-minio
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "minio") | nindent 4 }}
+spec:
+  serviceName: {{ $.Chart.Name }}-minio
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $.Chart.Name }}-minio
+  template:
+    metadata:
+      labels:
+        app: {{ $.Chart.Name }}-minio
+    spec:
+      containers:
+        - name: minio
+          image: {{ .Values.infra.minio.image }}
+          args:
+            - "server"
+            - "/data"
+          env:
+            - name: MINIO_ROOT_USER
+              value: {{ .Values.infra.minio.accessKey | quote }}
+            - name: MINIO_ROOT_PASSWORD
+              value: {{ .Values.infra.minio.secretKey | quote }}
+          resources:
+            {{- toYaml $.Values.infraResources | nindent 12 }}
+          ports:
+            - name: s3
+              containerPort: 9000
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - "/bin/sh"
+                  - "-c"
+                  - "mkdir -p /data/{{ .Values.infra.minio.bucket }}"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          hostPath:
+            path: {{ .Values.hostPathRoot }}/minio
+            type: DirectoryOrCreate
+{{- end }}
+
+{{- if .Values.infra.browserless.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Chart.Name }}-browserless
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "browserless") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $.Chart.Name }}-browserless
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Chart.Name }}-browserless
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "browserless") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $.Chart.Name }}-browserless
+  template:
+    metadata:
+      labels:
+        app: {{ $.Chart.Name }}-browserless
+    spec:
+      containers:
+        - name: browserless
+          image: {{ .Values.infra.browserless.image }}
+          {{- if $.Values.global.httpProxy }}
+          env:
+            - name: HTTP_PROXY
+              value: {{ $.Values.global.httpProxy | quote }}
+            - name: HTTPS_PROXY
+              value: {{ $.Values.global.httpProxy | quote }}
+            - name: NO_PROXY
+              value: "localhost,127.0.0.1,.svc.cluster.local,.svc"
+          {{- end }}
+          resources:
+            {{- toYaml $.Values.infraResources | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 3000
+{{- end }}
+
+{{- if .Values.infra.buildkitd.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Chart.Name }}-buildkitd
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $.Chart.Name }}-buildkitd
+  ports:
+    - name: grpc
+      port: 1234
+      targetPort: 1234
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $.Chart.Name }}-buildkitd
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd") | nindent 4 }}
+spec:
+  serviceName: {{ $.Chart.Name }}-buildkitd
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $.Chart.Name }}-buildkitd
+  template:
+    metadata:
+      labels:
+        app: {{ $.Chart.Name }}-buildkitd
+    spec:
+      containers:
+        - name: buildkitd
+          image: {{ .Values.infra.buildkitd.image }}
+          args:
+            - "--addr"
+            - "tcp://0.0.0.0:1234"
+            - "--oci-worker-snapshotter"
+            - "native"
+          resources:
+            {{- toYaml $.Values.infraResources | nindent 12 }}
+          ports:
+            - name: grpc
+              containerPort: 1234
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/buildkit
+      volumes:
+        - name: data
+          hostPath:
+            path: {{ .Values.hostPathRoot }}/buildkitd
+            type: DirectoryOrCreate
+{{- end }}

@@ -1,0 +1,166 @@
+global:
+  imageRegistry: recoder-dev002.develop.10.199.64.20.nip.io
+  imageTag: dev
+  # HTTP(S) proxy used to pull public (docker.io) images in the infra pods.
+  # e.g. http://mihomo.develop.svc.cluster.local:7890
+  httpProxy: http://mihomo.develop.svc.cluster.local:7890
+
+imagePullPolicy: Always
+
+# Host path on the single cluster node where infra data lives. Must exist (or
+# be creatable) on the node. Each infra service stores under
+# <hostPathRoot>/<service-name>.
+hostPathRoot: /home/develop/Data
+
+# Internal service hostnames. When infra.<x>.enabled is true, the chart deploys
+# the dependency inside this release and these hosts point at the in-chart
+# Service (rucoder-<x>). Set enabled=false to reuse external services.
+infra:
+  postgres:
+    enabled: true
+    image: recoder-dev002.develop.10.199.64.20.nip.io/postgres:18-alpine3.24
+    storage: 100Gi
+    user: root
+    password: devpassword
+    databases:
+      agent: rucoder_agent
+      registry: rucoder_registry
+      platform: rucoder_platform
+  nats:
+    enabled: true
+    image: recoder-dev002.develop.10.199.64.20.nip.io/nats:2.14.5-alpine
+    storage: 100Gi
+  minio:
+    enabled: true
+    image: recoder-dev002.develop.10.199.64.20.nip.io/minio:RELEASE.2025-09-07T16-13-09Z
+    storage: 100Gi
+    accessKey: root
+    secretKey: devpassword
+    bucket: rucoder-blobs
+  browserless:
+    enabled: true
+    image: recoder-dev002.develop.10.199.64.20.nip.io/browserless:latest
+  buildkitd:
+    enabled: true
+    image: recoder-dev002.develop.10.199.64.20.nip.io/buildkit:v0.32.2
+    storage: 100Gi
+nats:
+  url: nats://nats.develop.svc.cluster.local:4222
+
+postgres:
+  host: postgres.develop.svc.cluster.local
+  port: "5432"
+  user: root
+  password: devpassword
+  databases:
+    agent: rucoder_agent
+    registry: rucoder_registry
+    platform: rucoder_platform
+
+minio:
+  endpoint: http://minio.develop.svc.cluster.local:9000
+  accessKey: root
+  secretKey: devpassword
+  bucket: rucoder-blobs
+
+llm:
+  baseUrl: http://tal-openai-proxy.develop.svc.cluster.local:4000/v1
+  apiKey: ""
+  model: deepseek-v4-pro
+
+k8s:
+  namespace: temp
+  workerImage: recoder-dev002.develop.10.199.64.20.nip.io/rucoder-worker:dev
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+infraResources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "2"
+    memory: 1Gi
+
+services:
+  gateway:
+    enabled: true
+    port: 80
+    containerPort: 8080
+  registry:
+    enabled: true
+    port: 80
+    containerPort: 8080
+  repo-manager:
+    enabled: true
+    port: 80
+    containerPort: 8080
+  executor:
+    enabled: true
+    port: 80
+    containerPort: 8080
+  agent:
+    enabled: true
+    port: 80
+    containerPort: 8080
+  browser:
+    enabled: true
+    port: 80
+    containerPort: 8080
+  builder:
+    enabled: true
+    port: 80
+    containerPort: 8080
+  repo-tools:
+    enabled: true
+    port: 80
+    containerPort: 8080
+  browser-tools:
+    enabled: true
+    port: 80
+    containerPort: 8080
+  sandbox-tools:
+    enabled: true
+    port: 80
+    containerPort: 8080
+  artifact-tools:
+    enabled: true
+    port: 80
+    containerPort: 8080
+  memory-tools:
+    enabled: true
+    port: 80
+    containerPort: 8080
+
+persistence:
+  repos:
+    enabled: true
+    size: 100Gi
+
+browser:
+  cdpUrl: http://browserless.develop.svc.cluster.local:3000
+
+builder:
+  repoManagerUrl: http://rucoder-repo-manager.develop.svc.cluster.local:80
+  registry: recoder-dev002.develop.10.199.64.20.nip.io
+
+podman:
+  url: http://podman.develop.svc.cluster.local:8080
+
+repoManager:
+  reposRoot: /home/user/.recoder/repos
+
+registryToken: ""
+
+pullSecret:
+  enabled: false
+  name: rucoder-pull
+  dockerconfigjson: ""
+
+
