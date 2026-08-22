@@ -1,9 +1,11 @@
 global:
-  imageRegistry: recoder-dev002.develop.10.199.64.20.nip.io
+  imageRegistry: rucoder-zot.temp.10.199.64.20.nip.io
   imageTag: dev
   # HTTP(S) proxy used to pull public (docker.io) images in the infra pods.
   # e.g. http://mihomo.develop.svc.cluster.local:7890
   httpProxy: http://mihomo.develop.svc.cluster.local:7890
+  # Hostname the Zot OCI registry is exposed as (buildkitd insecure config).
+  zotHost: rucoder-zot.temp.10.199.64.20.nip.io
 
 imagePullPolicy: Always
 
@@ -18,31 +20,27 @@ hostPathRoot: /home/develop/Data
 infra:
   postgres:
     enabled: true
-    image: recoder-dev002.develop.10.199.64.20.nip.io/postgres:18-alpine3.24
+    image: rucoder-zot.temp.10.199.64.20.nip.io/postgres:18-alpine3.24
     storage: 100Gi
     user: root
     password: devpassword
     databases:
       agent: rucoder_agent
-      registry: rucoder_registry
       platform: rucoder_platform
   nats:
     enabled: true
-    image: recoder-dev002.develop.10.199.64.20.nip.io/nats:2.14.5-alpine
+    image: rucoder-zot.temp.10.199.64.20.nip.io/nats:2.14.5-alpine
     storage: 100Gi
-  minio:
-    enabled: true
-    image: recoder-dev002.develop.10.199.64.20.nip.io/minio:RELEASE.2025-09-07T16-13-09Z
-    storage: 100Gi
-    accessKey: root
-    secretKey: devpassword
-    bucket: rucoder-blobs
   browserless:
     enabled: true
-    image: recoder-dev002.develop.10.199.64.20.nip.io/browserless:latest
+    image: rucoder-zot.temp.10.199.64.20.nip.io/browserless:latest
   buildkitd:
     enabled: true
-    image: recoder-dev002.develop.10.199.64.20.nip.io/buildkit:v0.32.2
+    image: rucoder-zot.temp.10.199.64.20.nip.io/buildkit-rootless:rootless
+    storage: 100Gi
+  zot:
+    enabled: true
+    image: rucoder-zot.temp.10.199.64.20.nip.io/zot:v2.1.4
     storage: 100Gi
 nats:
   url: nats://nats.develop.svc.cluster.local:4222
@@ -54,14 +52,8 @@ postgres:
   password: devpassword
   databases:
     agent: rucoder_agent
-    registry: rucoder_registry
     platform: rucoder_platform
 
-minio:
-  endpoint: http://minio.develop.svc.cluster.local:9000
-  accessKey: root
-  secretKey: devpassword
-  bucket: rucoder-blobs
 
 llm:
   baseUrl: http://tal-openai-proxy.develop.svc.cluster.local:4000/v1
@@ -70,7 +62,7 @@ llm:
 
 k8s:
   namespace: temp
-  workerImage: recoder-dev002.develop.10.199.64.20.nip.io/rucoder-worker:dev
+  workerImage: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-worker:dev
 
 resources:
   requests:
@@ -80,13 +72,57 @@ resources:
     cpu: "1"
     memory: 512Mi
 
+# CPU/memory limits for the tool-server services (repo-tools, browser-tools,
+# sandbox-tools, artifact-tools, memory-tools). Kept tiny so the cumulative
+# per-pod limits.cpu stays well under the temp-quota (32 cores).
+toolResources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: "0.2"
+    memory: 256Mi
+
+# Names of the tool-server deployments, matched by the deployment template to
+# apply toolResources.
+toolServices:
+  - repo-tools
+  - browser-tools
+  - sandbox-tools
+  - artifact-tools
+  - memory-tools
+
+registryResources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
 infraResources:
   requests:
     cpu: 100m
     memory: 128Mi
   limits:
-    cpu: "2"
+    cpu: "1"
     memory: 1Gi
+
+buildkitdResources:
+  requests:
+    cpu: 1
+    memory: 2Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+zotResources:
+  requests:
+    cpu: 1
+    memory: 1Gi
+  limits:
+    cpu: "1"
+    memory: 2Gi
 
 services:
   gateway:
@@ -101,6 +137,8 @@ services:
     enabled: true
     port: 80
     containerPort: 8080
+    # Go rewrite (repo-manager-go); the Rust rucoder-repo-manager is retired.
+    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-repo-manager-go:dev
   executor:
     enabled: true
     port: 80
@@ -109,6 +147,9 @@ services:
     enabled: true
     port: 80
     containerPort: 8080
+    # The agent is the TypeScript implementation (Vercel AI SDK); the Rust
+    # agent has been removed.
+    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-agent-ts:dev
   browser:
     enabled: true
     port: 80
@@ -121,6 +162,8 @@ services:
     enabled: true
     port: 80
     containerPort: 8080
+    # Go rewrite (repo-extension); the Rust rucoder-repo-tools is retired.
+    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-repo-extension:dev
   browser-tools:
     enabled: true
     port: 80
@@ -148,7 +191,7 @@ browser:
 
 builder:
   repoManagerUrl: http://rucoder-repo-manager.develop.svc.cluster.local:80
-  registry: recoder-dev002.develop.10.199.64.20.nip.io
+  registry: rucoder-zot.temp.10.199.64.20.nip.io
 
 podman:
   url: http://podman.develop.svc.cluster.local:8080
@@ -157,6 +200,7 @@ repoManager:
   reposRoot: /home/user/.recoder/repos
 
 registryToken: ""
+registryAdminToken: "rxt_dev_admin"
 
 pullSecret:
   enabled: false
