@@ -40,9 +40,9 @@ infra:
     storage: 100Gi
   zot:
     enabled: true
-    # Kept only to bootstrap the artifact registry (go-registry's own image is
-    # pulled from here until a non-self source exists). All other images now
-    # come from rucoder-artifact.
+    # Zot is kept solely as the bootstrap source for the artifact registry's
+    # own image (go-registry has no external source; a registry cannot pull its
+    # own image while down). All application images come from rucoder-artifact.
     image: rucoder-zot.temp.10.199.64.20.nip.io/zot:v2.1.4
     storage: 100Gi
 nats:
@@ -133,8 +133,8 @@ services:
     containerPort: 5000
     # Go artifact registry (language protocols + OCI), replacing the Rust
     # registry. zot stays up in parallel for now.
-    # artifact serves the go-registry image itself, but the image is bootstrapped
-    # from zot (chicken-and-egg: a registry cannot pull its own image while down).
+    # artifact serves its own go-registry image; bootstrapped from zot (no
+    # external source exists for this self-hosted image).
     image: rucoder-zot.temp.10.199.64.20.nip.io/go-registry:dev
   repo:
     enabled: true
