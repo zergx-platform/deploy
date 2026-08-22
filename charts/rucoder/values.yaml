@@ -72,7 +72,7 @@ resources:
     cpu: "1"
     memory: 512Mi
 
-# CPU/memory limits for the tool-server services (repo-tools, browser-tools,
+# CPU/memory limits for the tool-server services (browser-tools,
 # sandbox-tools, artifact-tools, memory-tools). Kept tiny so the cumulative
 # per-pod limits.cpu stays well under the temp-quota (32 cores).
 toolResources:
@@ -86,7 +86,6 @@ toolResources:
 # Names of the tool-server deployments, matched by the deployment template to
 # apply toolResources.
 toolServices:
-  - repo-tools
   - browser-tools
   - sandbox-tools
   - artifact-tools
@@ -133,12 +132,12 @@ services:
     enabled: true
     port: 80
     containerPort: 8080
-  repo-manager:
+  repo:
     enabled: true
     port: 80
     containerPort: 8080
     # Rust jj-lib native server (single static binary, no external git/jj).
-    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-jj-server:dev
+    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-repo:dev
   executor:
     enabled: true
     port: 80
@@ -158,12 +157,6 @@ services:
     enabled: true
     port: 80
     containerPort: 8080
-  repo-tools:
-    enabled: true
-    port: 80
-    containerPort: 8080
-    # Go rewrite (repo-extension); the Rust rucoder-repo-tools is retired.
-    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-repo-extension:dev
   browser-tools:
     enabled: true
     port: 80
