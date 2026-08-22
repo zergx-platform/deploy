@@ -28,6 +28,14 @@ spec:
           image: "{{ $.Values.global.imageRegistry }}/{{ $.Chart.Name }}-{{ $name }}:{{ $.Values.global.imageTag }}"
           {{- end }}
           imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          {{- if eq $name "registry" }}
+          args:
+            - "-addr=0.0.0.0:{{ $svc.containerPort | default 5000 }}"
+            - "-root=/data"
+            - "-self-base=http://{{ include "rucoder.fullname" (dict "Chart" $.Chart "Release" $.Release "name" $name) }}.{{ $.Release.Namespace }}.svc.cluster.local"
+            - "-upstream={{ $.Values.builder.registry }}/v2"
+            - "-config=/config.yaml"
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ $svc.containerPort | default 8080 }}
@@ -49,13 +57,21 @@ spec:
           {{- if ne $name "browser-extension" }}
           readinessProbe:
             httpGet:
+              {{- if eq $name "registry" }}
+              path: /pkgs/oci/v2/
+              {{- else }}
               path: /api/v1/health
+              {{- end }}
               port: http
             initialDelaySeconds: 2
             periodSeconds: 5
           livenessProbe:
             httpGet:
+              {{- if eq $name "registry" }}
+              path: /pkgs/oci/v2/
+              {{- else }}
               path: /api/v1/health
+              {{- end }}
               port: http
             initialDelaySeconds: 10
             periodSeconds: 15
