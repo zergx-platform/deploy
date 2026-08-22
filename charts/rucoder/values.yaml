@@ -1,5 +1,5 @@
 global:
-  imageRegistry: rucoder-zot.temp.10.199.64.20.nip.io
+  imageRegistry: rucoder-artifact.temp.10.199.64.20.nip.io
   imageTag: dev
   # HTTP(S) proxy used to pull public (docker.io) images in the infra pods.
   # e.g. http://mihomo.develop.svc.cluster.local:7890
@@ -20,7 +20,7 @@ hostPathRoot: /home/develop/Data
 infra:
   postgres:
     enabled: true
-    image: rucoder-zot.temp.10.199.64.20.nip.io/postgres:18-alpine3.24
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/postgres:18-alpine3.24
     storage: 100Gi
     user: root
     password: devpassword
@@ -29,14 +29,14 @@ infra:
       platform: rucoder_platform
   nats:
     enabled: true
-    image: rucoder-zot.temp.10.199.64.20.nip.io/nats:2.14.5-alpine
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/nats:2.14.5-alpine
     storage: 100Gi
   browserless:
     enabled: true
-    image: rucoder-zot.temp.10.199.64.20.nip.io/browserless:latest
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/browserless:latest
   buildkitd:
     enabled: true
-    image: rucoder-zot.temp.10.199.64.20.nip.io/buildkit-rootless:rootless
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/buildkit-rootless:rootless
     storage: 100Gi
   zot:
     enabled: true
@@ -62,7 +62,7 @@ llm:
 
 k8s:
   namespace: temp
-  workerImage: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-worker:dev
+  workerImage: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-worker:dev
 
 resources:
   requests:
@@ -124,7 +124,7 @@ services:
     enabled: true
     port: 80
     containerPort: 8080
-  registry:
+  artifact:
     enabled: true
     port: 80
     containerPort: 5000
@@ -136,32 +136,32 @@ services:
     port: 80
     containerPort: 8080
     # Rust jj-lib native server (single static binary, no external git/jj).
-    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-repo:dev
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-repo:dev
   repo-extension:
     enabled: true
     port: 80
     containerPort: 8080
     # Go NATS tool layer forwarding agent file/git tools to jj-server.
-    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-repo-extension:dev
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-repo-extension:dev
   ops-extension:
     enabled: true
     port: 80
     containerPort: 8080
     # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
-    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-ops-extension:dev
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-ops-extension:dev
   browser-extension:
     enabled: true
     port: 80
     containerPort: 8080
     # TS extension: browser + browser-tools.
-    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-browser-extension:dev
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-browser-extension:dev
   agent:
     enabled: true
     port: 80
     containerPort: 8080
     # The agent is the TypeScript implementation (Vercel AI SDK); the Rust
     # agent has been removed.
-    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-agent-ts:dev
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-agent-ts:dev
   memory-tools:
     enabled: true
     port: 80
@@ -176,7 +176,7 @@ browser:
   cdpUrl: http://browserless.develop.svc.cluster.local:3000
 
 builder:
-  registry: rucoder-zot.temp.10.199.64.20.nip.io
+  registry: rucoder-artifact.temp.10.199.64.20.nip.io
 
 repoManager:
   reposRoot: /home/user/.recoder/repos

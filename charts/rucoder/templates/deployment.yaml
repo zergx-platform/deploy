@@ -9,6 +9,12 @@ metadata:
     {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 4 }}
 spec:
   replicas: 1
+  {{- if eq $name "artifact" }}
+  # hostPath /data holds a bbolt db that only allows one writer: rolling
+  # updates would leave old+new pods sharing the same lock and dead-loop.
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 6 }}
@@ -28,12 +34,12 @@ spec:
           image: "{{ $.Values.global.imageRegistry }}/{{ $.Chart.Name }}-{{ $name }}:{{ $.Values.global.imageTag }}"
           {{- end }}
           imagePullPolicy: {{ $.Values.imagePullPolicy }}
-          {{- if eq $name "registry" }}
+          {{- if eq $name "artifact" }}
           args:
             - "-addr=0.0.0.0:{{ $svc.containerPort | default 5000 }}"
             - "-root=/data"
             - "-self-base=http://{{ include "rucoder.fullname" (dict "Chart" $.Chart "Release" $.Release "name" $name) }}.{{ $.Release.Namespace }}.svc.cluster.local"
-            - "-upstream={{ $.Values.builder.registry }}/v2"
+            - "-upstream=https://docker.m.daocloud.io"
             - "-config=/config.yaml"
           {{- end }}
           ports:
@@ -49,16 +55,16 @@ spec:
             - name: repo-manager-data
               mountPath: /data
           {{- end }}
-          {{- if eq $name "registry" }}
+          {{- if eq $name "artifact" }}
           volumeMounts:
-            - name: registry-data
+            - name: artifact-data
               mountPath: /data
           {{- end }}
           {{- if ne $name "browser-extension" }}
           readinessProbe:
             httpGet:
-              {{- if eq $name "registry" }}
-              path: /pkgs/oci/v2/
+              {{- if eq $name "artifact" }}
+              path: /v2/
               {{- else }}
               path: /api/v1/health
               {{- end }}
@@ -67,8 +73,8 @@ spec:
             periodSeconds: 5
           livenessProbe:
             httpGet:
-              {{- if eq $name "registry" }}
-              path: /pkgs/oci/v2/
+              {{- if eq $name "artifact" }}
+              path: /v2/
               {{- else }}
               path: /api/v1/health
               {{- end }}
@@ -77,7 +83,7 @@ spec:
             periodSeconds: 15
           {{- end }}
           resources:
-            {{- if eq $name "registry" }}
+            {{- if eq $name "artifact" }}
             {{- toYaml (default $.Values.resources $.Values.registryResources) | nindent 12 }}
             {{- else if has $name $.Values.toolServices }}
             {{- toYaml (default $.Values.resources $.Values.toolResources) | nindent 12 }}
@@ -95,11 +101,11 @@ spec:
             path: {{ $.Values.hostPathRoot }}/rucoder-repo-manager
             type: DirectoryOrCreate
       {{- end }}
-      {{- if eq $name "registry" }}
+      {{- if eq $name "artifact" }}
       volumes:
-        - name: registry-data
+        - name: artifact-data
           hostPath:
-            path: {{ $.Values.hostPathRoot }}/rucoder-registry
+            path: {{ $.Values.hostPathRoot }}/rucoder-artifact
             type: DirectoryOrCreate
       {{- end }}
 {{- end }}
