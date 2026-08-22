@@ -4,7 +4,7 @@ global:
   # HTTP(S) proxy used to pull public (docker.io) images in the infra pods.
   # e.g. http://mihomo.develop.svc.cluster.local:7890
   httpProxy: http://mihomo.develop.svc.cluster.local:7890
-  # Hostname the Zot OCI registry is exposed as (buildkitd insecure config).
+  # Zot OCI registry (bootstrap source for artifact, kept in parallel).
   zotHost: rucoder-zot.temp.10.199.64.20.nip.io
 
 imagePullPolicy: Always
@@ -40,6 +40,9 @@ infra:
     storage: 100Gi
   zot:
     enabled: true
+    # Kept only to bootstrap the artifact registry (go-registry's own image is
+    # pulled from here until a non-self source exists). All other images now
+    # come from rucoder-artifact.
     image: rucoder-zot.temp.10.199.64.20.nip.io/zot:v2.1.4
     storage: 100Gi
 nats:
@@ -130,8 +133,8 @@ services:
     containerPort: 5000
     # Go artifact registry (language protocols + OCI), replacing the Rust
     # registry. zot stays up in parallel for now.
-    # TODO: bootstrap chicken-and-egg — artifact serves go-registry, but its own
-    # image is initially pulled from zot until the image is mirrored into itself.
+    # artifact serves the go-registry image itself, but the image is bootstrapped
+    # from zot (chicken-and-egg: a registry cannot pull its own image while down).
     image: rucoder-zot.temp.10.199.64.20.nip.io/go-registry:dev
   repo:
     enabled: true

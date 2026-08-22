@@ -33,7 +33,11 @@ spec:
           {{- else }}
           image: "{{ $.Values.global.imageRegistry }}/{{ $.Chart.Name }}-{{ $name }}:{{ $.Values.global.imageTag }}"
           {{- end }}
+          {{- if eq $name "artifact" }}
+          imagePullPolicy: IfNotPresent
+          {{- else }}
           imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          {{- end }}
           {{- if eq $name "artifact" }}
           args:
             - "-addr=0.0.0.0:{{ $svc.containerPort | default 5000 }}"

@@ -242,6 +242,7 @@ spec:
       containers:
         - name: zot
           image: {{ $.Values.infra.zot.image }}
+          imagePullPolicy: IfNotPresent
           args:
             - "serve"
             - "/etc/zot/config.json"
@@ -389,7 +390,7 @@ metadata:
     {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd-config") | nindent 4 }}
 data:
   buildkitd.toml: |
-    [registry."{{ $.Values.global.zotHost }}"]
+    [registry."rucoder-zot.temp.10.199.64.20.nip.io"]
       http = false
       insecure = true
     [registry."{{ $.Values.global.imageRegistry }}"]
