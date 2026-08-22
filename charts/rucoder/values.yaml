@@ -72,9 +72,8 @@ resources:
     cpu: "1"
     memory: 512Mi
 
-# CPU/memory limits for the tool-server services (browser-tools,
-# sandbox-tools, artifact-tools, memory-tools). Kept tiny so the cumulative
-# per-pod limits.cpu stays well under the temp-quota (32 cores).
+# CPU/memory limits for the tool-server services (memory-tools). Kept tiny so the
+# cumulative per-pod limits.cpu stays well under the temp-quota (32 cores).
 toolResources:
   requests:
     cpu: 50m
@@ -86,9 +85,6 @@ toolResources:
 # Names of the tool-server deployments, matched by the deployment template to
 # apply toolResources.
 toolServices:
-  - browser-tools
-  - sandbox-tools
-  - artifact-tools
   - memory-tools
 
 registryResources:
@@ -138,10 +134,18 @@ services:
     containerPort: 8080
     # Rust jj-lib native server (single static binary, no external git/jj).
     image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-repo:dev
-  executor:
+  ops-extension:
     enabled: true
     port: 80
     containerPort: 8080
+    # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
+    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-ops-extension:dev
+  browser-extension:
+    enabled: true
+    port: 80
+    containerPort: 8080
+    # TS extension: browser + browser-tools.
+    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-browser-extension:dev
   agent:
     enabled: true
     port: 80
@@ -149,26 +153,6 @@ services:
     # The agent is the TypeScript implementation (Vercel AI SDK); the Rust
     # agent has been removed.
     image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-agent-ts:dev
-  browser:
-    enabled: true
-    port: 80
-    containerPort: 8080
-  builder:
-    enabled: true
-    port: 80
-    containerPort: 8080
-  browser-tools:
-    enabled: true
-    port: 80
-    containerPort: 8080
-  sandbox-tools:
-    enabled: true
-    port: 80
-    containerPort: 8080
-  artifact-tools:
-    enabled: true
-    port: 80
-    containerPort: 8080
   memory-tools:
     enabled: true
     port: 80
@@ -184,9 +168,6 @@ browser:
 
 builder:
   registry: rucoder-zot.temp.10.199.64.20.nip.io
-
-podman:
-  url: http://podman.develop.svc.cluster.local:8080
 
 repoManager:
   reposRoot: /home/user/.recoder/repos

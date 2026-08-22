@@ -17,8 +17,8 @@ spec:
       labels:
         {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 8 }}
     spec:
-      {{- if eq $name "executor" }}
-      serviceAccountName: {{ $.Chart.Name }}-executor
+      {{- if eq $name "ops-extension" }}
+      serviceAccountName: {{ $.Chart.Name }}-ops-extension
       {{- end }}
       containers:
         - name: {{ $name }}
@@ -46,6 +46,7 @@ spec:
             - name: registry-data
               mountPath: /data
           {{- end }}
+          {{- if ne $name "browser-extension" }}
           readinessProbe:
             httpGet:
               path: /api/v1/health
@@ -58,6 +59,7 @@ spec:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 15
+          {{- end }}
           resources:
             {{- if eq $name "registry" }}
             {{- toYaml (default $.Values.resources $.Values.registryResources) | nindent 12 }}
