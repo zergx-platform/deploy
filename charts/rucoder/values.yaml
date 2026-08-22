@@ -130,6 +130,8 @@ services:
     containerPort: 5000
     # Go artifact registry (language protocols + OCI), replacing the Rust
     # registry. zot stays up in parallel for now.
+    # TODO: bootstrap chicken-and-egg — artifact serves go-registry, but its own
+    # image is initially pulled from zot until the image is mirrored into itself.
     image: rucoder-zot.temp.10.199.64.20.nip.io/go-registry:dev
   repo:
     enabled: true
