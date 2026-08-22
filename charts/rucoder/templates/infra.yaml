@@ -206,105 +206,6 @@ spec:
               containerPort: 3000
 {{- end }}
 
-{{- if .Values.infra.zot.enabled }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ $.Chart.Name }}-zot
-  labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "zot") | nindent 4 }}
-spec:
-  type: ClusterIP
-  selector:
-    app: {{ $.Chart.Name }}-zot
-  ports:
-    - name: http
-      port: 80
-      targetPort: 5000
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ $.Chart.Name }}-zot
-  labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "zot") | nindent 4 }}
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: {{ $.Chart.Name }}-zot
-  template:
-    metadata:
-      labels:
-        app: {{ $.Chart.Name }}-zot
-    spec:
-      containers:
-        - name: zot
-          image: {{ $.Values.infra.zot.image }}
-          imagePullPolicy: IfNotPresent
-          args:
-            - "serve"
-            - "/etc/zot/config.json"
-          ports:
-            - name: http
-              containerPort: 5000
-          volumeMounts:
-            - name: zot-data
-              mountPath: /var/lib/registry
-            - name: zot-config
-              mountPath: /etc/zot/config.json
-              subPath: config.json
-          readinessProbe:
-            httpGet:
-              path: /v2/
-              port: http
-            initialDelaySeconds: 2
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /v2/
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 20
-          resources:
-            {{- toYaml (default $.Values.infraResources $.Values.zotResources) | nindent 12 }}
-      volumes:
-        - name: zot-data
-          hostPath:
-            path: {{ $.Values.hostPathRoot }}/zot
-            type: DirectoryOrCreate
-        - name: zot-config
-          configMap:
-            name: {{ $.Chart.Name }}-zot-config
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $.Chart.Name }}-zot-config
-  labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "zot-config") | nindent 4 }}
-data:
-  config.json: |
-    {
-      "distSpecVersion": "1.1.1",
-      "storage": {
-        "rootDirectory": "/var/lib/registry"
-      },
-      "http": {
-        "address": "0.0.0.0",
-        "port": "5000"
-      },
-      "extensions": {
-        "sync": {
-          "enable": false
-        }
-      },
-      "log": {
-        "level": "info"
-      }
-    }
-{{- end }}
 {{- if .Values.infra.buildkitd.enabled }}
 ---
 apiVersion: v1
@@ -390,9 +291,6 @@ metadata:
     {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd-config") | nindent 4 }}
 data:
   buildkitd.toml: |
-    [registry."rucoder-zot.temp.10.199.64.20.nip.io"]
-      http = false
-      insecure = true
     [registry."{{ $.Values.global.imageRegistry }}"]
       http = false
       insecure = true

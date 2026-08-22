@@ -4,8 +4,6 @@ global:
   # HTTP(S) proxy used to pull public (docker.io) images in the infra pods.
   # e.g. http://mihomo.develop.svc.cluster.local:7890
   httpProxy: http://mihomo.develop.svc.cluster.local:7890
-  # Zot OCI registry (bootstrap source for artifact, kept in parallel).
-  zotHost: rucoder-zot.temp.10.199.64.20.nip.io
 
 imagePullPolicy: Always
 
@@ -37,13 +35,6 @@ infra:
   buildkitd:
     enabled: true
     image: rucoder-artifact.temp.10.199.64.20.nip.io/buildkit-rootless:rootless
-    storage: 100Gi
-  zot:
-    enabled: true
-    # Zot is kept solely as the bootstrap source for the artifact registry's
-    # own image (go-registry has no external source; a registry cannot pull its
-    # own image while down). All application images come from rucoder-artifact.
-    image: rucoder-zot.temp.10.199.64.20.nip.io/zot:v2.1.4
     storage: 100Gi
 nats:
   url: nats://nats.develop.svc.cluster.local:4222
@@ -114,14 +105,6 @@ buildkitdResources:
     cpu: "2"
     memory: 4Gi
 
-zotResources:
-  requests:
-    cpu: 1
-    memory: 1Gi
-  limits:
-    cpu: "1"
-    memory: 2Gi
-
 services:
   gateway:
     enabled: true
@@ -132,10 +115,11 @@ services:
     port: 80
     containerPort: 5000
     # Go artifact registry (language protocols + OCI), replacing the Rust
-    # registry. zot stays up in parallel for now.
-    # artifact serves its own go-registry image; bootstrapped from zot (no
-    # external source exists for this self-hosted image).
-    image: rucoder-zot.temp.10.199.64.20.nip.io/go-registry:dev
+    # registry. The artifact serves its own go-registry image (there is no
+    # external source for this self-hosted image); the image is pre-pulled onto
+    # the node kubelet so the artifact can cold-start via imagePullPolicy
+    # IfNotPresent without any external bootstrap registry.
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/go-registry:dev
   repo:
     enabled: true
     port: 80
