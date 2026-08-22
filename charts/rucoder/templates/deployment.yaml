@@ -22,7 +22,11 @@ spec:
       {{- end }}
       containers:
         - name: {{ $name }}
+          {{- if $svc.image }}
+          image: {{ $svc.image }}
+          {{- else }}
           image: "{{ $.Values.global.imageRegistry }}/{{ $.Chart.Name }}-{{ $name }}:{{ $.Values.global.imageTag }}"
+          {{- end }}
           imagePullPolicy: {{ $.Values.imagePullPolicy }}
           ports:
             - name: http
@@ -31,11 +35,18 @@ spec:
             - secretRef:
                 name: {{ $.Chart.Name }}-external
           {{- if eq $name "repo-manager" }}
-          {{- if $.Values.persistence.repos.enabled }}
           volumeMounts:
+            {{- if $.Values.persistence.repos.enabled }}
             - name: repos
               mountPath: /home/user/.recoder/repos
+            {{- end }}
+            - name: repo-manager-data
+              mountPath: /data
           {{- end }}
+          {{- if eq $name "registry" }}
+          volumeMounts:
+            - name: registry-data
+              mountPath: /data
           {{- end }}
           readinessProbe:
             httpGet:
@@ -50,14 +61,31 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 15
           resources:
+            {{- if eq $name "registry" }}
+            {{- toYaml (default $.Values.resources $.Values.registryResources) | nindent 12 }}
+            {{- else if has $name $.Values.toolServices }}
+            {{- toYaml (default $.Values.resources $.Values.toolResources) | nindent 12 }}
+            {{- else }}
             {{- toYaml $.Values.resources | nindent 12 }}
+            {{- end }}
       {{- if eq $name "repo-manager" }}
-      {{- if $.Values.persistence.repos.enabled }}
       volumes:
+        {{- if $.Values.persistence.repos.enabled }}
         - name: repos
           persistentVolumeClaim:
             claimName: {{ $.Chart.Name }}-repos
+        {{- end }}
+        - name: repo-manager-data
+          hostPath:
+            path: {{ $.Values.hostPathRoot }}/rucoder-repo-manager
+            type: DirectoryOrCreate
       {{- end }}
+      {{- if eq $name "registry" }}
+      volumes:
+        - name: registry-data
+          hostPath:
+            path: {{ $.Values.hostPathRoot }}/rucoder-registry
+            type: DirectoryOrCreate
       {{- end }}
 {{- end }}
 {{- end }}
