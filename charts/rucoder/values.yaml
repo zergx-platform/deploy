@@ -137,8 +137,8 @@ services:
     enabled: true
     port: 80
     containerPort: 8080
-    # Go rewrite (repo-manager-go); the Rust rucoder-repo-manager is retired.
-    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-repo-manager-go:dev
+    # Rust jj-lib native server (single static binary, no external git/jj).
+    image: rucoder-zot.temp.10.199.64.20.nip.io/rucoder-jj-server:dev
   executor:
     enabled: true
     port: 80

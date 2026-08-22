@@ -36,10 +36,8 @@ spec:
                 name: {{ $.Chart.Name }}-external
           {{- if eq $name "repo-manager" }}
           volumeMounts:
-            {{- if $.Values.persistence.repos.enabled }}
             - name: repos
               mountPath: /home/user/.recoder/repos
-            {{- end }}
             - name: repo-manager-data
               mountPath: /data
           {{- end }}
@@ -70,11 +68,10 @@ spec:
             {{- end }}
       {{- if eq $name "repo-manager" }}
       volumes:
-        {{- if $.Values.persistence.repos.enabled }}
         - name: repos
-          persistentVolumeClaim:
-            claimName: {{ $.Chart.Name }}-repos
-        {{- end }}
+          hostPath:
+            path: {{ $.Values.hostPathRoot }}/rucoder-repos
+            type: DirectoryOrCreate
         - name: repo-manager-data
           hostPath:
             path: {{ $.Values.hostPathRoot }}/rucoder-repo-manager
