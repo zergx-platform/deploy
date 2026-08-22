@@ -119,7 +119,7 @@ services:
     # external source for this self-hosted image); the image is pre-pulled onto
     # the node kubelet so the artifact can cold-start via imagePullPolicy
     # IfNotPresent without any external bootstrap registry.
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/go-registry:dev
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/go-registry:dev-admin
   repo:
     enabled: true
     port: 80

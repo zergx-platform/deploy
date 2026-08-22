@@ -63,6 +63,8 @@ spec:
           volumeMounts:
             - name: artifact-data
               mountPath: /data
+            - name: tmp
+              mountPath: /tmp
           {{- end }}
           {{- if ne $name "browser-extension" }}
           readinessProbe:
@@ -111,6 +113,8 @@ spec:
           hostPath:
             path: {{ $.Values.hostPathRoot }}/rucoder-artifact
             type: DirectoryOrCreate
+        - name: tmp
+          emptyDir: {}
       {{- end }}
 {{- end }}
 {{- end }}
