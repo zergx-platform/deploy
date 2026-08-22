@@ -183,7 +183,6 @@ browser:
   cdpUrl: http://browserless.develop.svc.cluster.local:3000
 
 builder:
-  repoManagerUrl: http://rucoder-repo-manager.develop.svc.cluster.local:80
   registry: rucoder-zot.temp.10.199.64.20.nip.io
 
 podman:
