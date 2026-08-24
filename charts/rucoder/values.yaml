@@ -119,7 +119,7 @@ services:
   artifact:
     enabled: true
     port: 80
-    containerPort: 5000
+    containerPort: 8080
     # Go artifact registry (language protocols + OCI), replacing the Rust
     # registry. The artifact serves its own go-registry image (there is no
     # external source for this self-hosted image); the image is pre-pulled onto
