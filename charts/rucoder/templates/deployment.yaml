@@ -10,10 +10,15 @@ metadata:
 spec:
   replicas: 1
   {{- if eq $name "artifact" }}
-  # hostPath /data holds a bbolt db that only allows one writer: rolling
-  # updates would leave old+new pods sharing the same lock and dead-loop.
+  # Artifact moved its metadata store from bbolt (single flock-holder) to
+  # SQLite in WAL mode, so multiple pods can now open the same single-node
+  # database — readers run concurrently, the writer queues on busy_timeout.
+  # A rolling update no longer dead-locks on the flock.
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   {{- end }}
   selector:
     matchLabels:
@@ -34,7 +39,11 @@ spec:
           image: "{{ $.Values.global.imageRegistry }}/{{ $.Chart.Name }}-{{ $name }}:{{ $.Values.global.imageTag }}"
           {{- end }}
           {{- if eq $name "artifact" }}
-          imagePullPolicy: IfNotPresent
+          # Always pull: the registry serves its own image, so a cached tag
+          # digest would otherwise never refresh on rollout (self-bootstrap
+          # deadlock). SQLite now permits rolling updates, so the new pod can
+          # safely start while the old one drains.
+          imagePullPolicy: Always
           {{- else }}
           imagePullPolicy: {{ $.Values.imagePullPolicy }}
           {{- end }}
@@ -52,6 +61,15 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ $.Chart.Name }}-external
+          {{- if eq $name "repo" }}
+          env:
+            - name: HTTP_PROXY
+              value: {{ ($.Values.global.httpProxy) | default "http://mihomo.develop.svc.cluster.local:7890" | quote }}
+            - name: HTTPS_PROXY
+              value: {{ ($.Values.global.httpProxy) | default "http://mihomo.develop.svc.cluster.local:7890" | quote }}
+            - name: NO_PROXY
+              value: "localhost,127.0.0.1,.svc.cluster.local,.svc,.nip.io,10.199.64.20"
+          {{- end }}
           {{- if eq $name "repo" }}
           volumeMounts:
             - name: repos

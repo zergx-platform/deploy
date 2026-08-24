@@ -291,6 +291,16 @@ metadata:
     {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd-config") | nindent 4 }}
 data:
   buildkitd.toml: |
+    # Pull docker.io images through the artifact OCI pull-through mirror over
+    # plain HTTP on the in-cluster service host — no TLS/egress to docker.io
+    # needed from buildkitd itself.
+    [registry."docker.io"]
+      mirrors = ["{{ include "rucoder.fullname" (dict "Chart" $.Chart "Release" $.Release "name" "artifact") }}.{{ $.Release.Namespace }}.svc.cluster.local:80"]
+
+    [registry."{{ include "rucoder.fullname" (dict "Chart" $.Chart "Release" $.Release "name" "artifact") }}.{{ $.Release.Namespace }}.svc.cluster.local:80"]
+      http = true
+      insecure = true
+
     [registry."{{ $.Values.global.imageRegistry }}"]
       http = false
       insecure = true
