@@ -18,7 +18,7 @@ hostPathRoot: /home/develop/Data
 infra:
   postgres:
     enabled: true
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/postgres:18-alpine3.24
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/pgvector:pg18
     storage: 100Gi
     user: root
     password: devpassword
@@ -116,6 +116,8 @@ services:
     enabled: true
     port: 80
     containerPort: 8080
+    # Go aggregate API + streaming reverse proxy + embedded SPA.
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-gateway-go:dev
   artifact:
     enabled: true
     port: 80
@@ -125,7 +127,12 @@ services:
     # external source for this self-hosted image); the image is pre-pulled onto
     # the node kubelet so the artifact can cold-start via imagePullPolicy
     # IfNotPresent without any external bootstrap registry.
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/go-registry:dev-admin
+    #
+    # The image is pinned by digest (not :dev) on purpose: imagePullPolicy is
+    # IfNotPresent and the kubelet never re-resolves a floating tag, so a
+    # rebuilt :dev would never roll out. Bump this digest whenever the
+    # go-registry image is rebuilt (buildctl push prints the sha256).
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/go-registry@sha256:5fe3d2434cbe9e15318f5ac74f7012bbe9465c35110edaadf9df020586dec166
   repo:
     enabled: true
     port: 80
