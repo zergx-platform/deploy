@@ -108,11 +108,11 @@ infraResources:
 
 buildkitdResources:
   requests:
-    cpu: 1
-    memory: 2Gi
+    cpu: 4
+    memory: 16Gi
   limits:
-    cpu: "2"
-    memory: 4Gi
+    cpu: "8"
+    memory: 128Gi
 
 services:
   gateway:
