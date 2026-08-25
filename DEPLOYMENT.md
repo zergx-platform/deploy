@@ -98,7 +98,7 @@ AGENT_BASE=http://rucoder-agent.temp.svc.cluster.local bash scripts/smoke.sh
    │        然后下游服务 chore 更新（第 4 节）
    ▼
 同步源码到 jj-server build org（第 5 节）
-   │  2. DELETE /repos/build/<repo> → clone（带认证 git_url）→ bookmark-from dev
+   │  2. DELETE /repos/build/<repo> → clone（带认证 git_url）→ POST /repos/build/<repo>/bookmarks 建 dev
    ▼
 ops-extension 异步构建（第 6 节）
    │  3. POST /api/v1/images/build（repo 模式，bookmark=dev，no_cache=true）
@@ -270,13 +270,13 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 # 3. 建/更新 dev bookmark（构建 tag 后缀 = bookmark 名）
 curl -s -X POST -H 'Content-Type: application/json' \
-  -d "{\"org\":\"$ORG\",\"repo\":\"$REPO\",\"source_rev\":\"master\",\"new_branch\":\"dev\"}" \
-  "$JJ/api/v1/repos/bookmark-from"
+  -d '{"rev":"master","branch":"dev"}' \
+  "$JJ/api/v1/repos/$ORG/$REPO/bookmarks"
 ```
 
 > **关键**：
 > - 镜像 tag 后缀 = **bookmark 名**。构建用 `dev` → 镜像 tag `:dev`。
-> - clone 后 jj 只保留 forgejo 默认分支（`master`），所以必须再 `bookmark-from` 建 `dev`。
+> - clone 后 jj 只保留 forgejo 默认分支（`master`），所以必须再 `POST /repos/{org}/{repo}/bookmarks` 建 `dev`。
 > - `git_url` 不带 `root:devpassword@` 会 clone 失败（Gitea 自签证书 + 无凭据）。
 
 ---
@@ -435,7 +435,7 @@ curl -s -I -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
 | buildkit 无持久卷 | pod 重启后缓存全丢、每次全量重编 | chart 已挂 hostPath `<root>/buildkit`；勿再依赖 no_cache 防陈旧 |
 | 误用 no_cache | 每次从零编依赖树（jj-server ≈13min） | 默认不传 no_cache；仅在怀疑缓存损坏时传 |
 | clone 不带认证 | `could not read Username` | `git_url` 用 `root:devpassword@` |
-| clone 后无 dev bookmark | 构建推到 `:master` 而非 `:dev` | `bookmark-from` 建 `dev` |
+| clone 后无 dev bookmark | 构建推到 `:master` 而非 `:dev` | `POST /repos/{org}/{repo}/bookmarks` 建 `dev` |
 | go 私有模块 sumdb 校验 | `unknown revision` / sum 校验失败 | `GOSUMDB=off` + artifact GOPROXY |
 | npm 覆盖旧版本 | `cannot publish over previously published` | bump 版本号 |
 | npm publish 报 ENEEDAUTH | registry 匿名但 npm 前置登录 | 配 `_authToken` 假令牌 |
@@ -461,8 +461,8 @@ curl -s -X POST -H 'Content-Type: application/json' \
   -d '{"org":"build","repo":"ops-extension","git_url":"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/rucoder/ops-extension.git"}' \
   "$JJ/api/v1/repos/clone"
 curl -s -X POST -H 'Content-Type: application/json' \
-  -d '{"org":"build","repo":"ops-extension","source_rev":"master","new_branch":"dev"}' \
-  "$JJ/api/v1/repos/bookmark-from"
+  -d '{"rev":"master","branch":"dev"}' \
+  "$JJ/api/v1/repos/build/ops-extension/bookmarks"
 
 # 构建（第 6 节）
 curl -s -X POST -H 'Content-Type: application/json' \
