@@ -18,7 +18,7 @@ hostPathRoot: /home/develop/Data
 infra:
   postgres:
     enabled: true
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/pgvector:pg18
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/postgres:18-alpine3.24
     storage: 100Gi
     user: root
     password: devpassword
