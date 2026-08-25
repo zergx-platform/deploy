@@ -296,11 +296,18 @@ curl -s -X POST -H 'Content-Type: application/json' \
     "bookmark": "dev",             # 决定镜像 tag 后缀
     "tag": "rucoder-ops-extension",# 镜像名（见第 0 节映射）
     "dockerfile": "Dockerfile",
-    "push": true,
-    "no_cache": true               # 强制重跑，防 buildkit 陈旧层缓存
+    "push": true
   }' "$OPS/api/v1/images/build"
 # 期望：{"build_id":"...","ok":true}
 ```
+
+> **构建缓存（重要）**：buildkitd 的 layer cache + content store 持久化在
+> hostPath `<hostPathRoot>/buildkit`，跨 pod 重启/helm upgrade 存活。
+> **不要默认传 `no_cache:true`**——buildkit 的层缓存按 Dockerfile 指令 +
+> 内容哈希自动失效，改源码会精确重建对应层；全局 no-cache 会每次从零重编
+> 整个依赖树（jj-server 全量 ≈ 13min，增量 ≈ 30s）。仅在怀疑缓存损坏时
+> 显式传 `no_cache:true` 强制重跑。raw 模式（无 repo、纯 Containerfile 文本）
+> 服务端已强制 no-cache，前端无需传。
 
 **轮询状态**：
 
@@ -425,7 +432,8 @@ curl -s -I -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
 | 坑 | 表现 | 解法 |
 |---|---|---|
 | artifact 镜像浮动 tag 不重拉 | 新 go-registry 不生效 | 镜像 digest 固定 + 每次重建更新 chart |
-| buildkit 陈旧层缓存 | 改了 Dockerfile 但镜像二进制还是旧的 | 构建接口加 `no_cache:true` |
+| buildkit 无持久卷 | pod 重启后缓存全丢、每次全量重编 | chart 已挂 hostPath `<root>/buildkit`；勿再依赖 no_cache 防陈旧 |
+| 误用 no_cache | 每次从零编依赖树（jj-server ≈13min） | 默认不传 no_cache；仅在怀疑缓存损坏时传 |
 | clone 不带认证 | `could not read Username` | `git_url` 用 `root:devpassword@` |
 | clone 后无 dev bookmark | 构建推到 `:master` 而非 `:dev` | `bookmark-from` 建 `dev` |
 | go 私有模块 sumdb 校验 | `unknown revision` / sum 校验失败 | `GOSUMDB=off` + artifact GOPROXY |

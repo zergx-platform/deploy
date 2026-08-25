@@ -242,6 +242,21 @@ spec:
     spec:
       securityContext:
         fsGroup: 1000
+      # The rootless buildkit image runs as uid 1000, but a hostPath created
+      # with DirectoryOrCreate is owned by root. fsGroup does not apply to
+      # hostPath volumes, so an init container chowns the data dir first.
+      initContainers:
+        - name: chown-buildkit-data
+          image: {{ .Values.infra.buildkitd.image }}
+          command: ["sh", "-c", "chown -R 1000:1000 /var/lib/buildkit"]
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          resources:
+            {{- toYaml .Values.infraResources | nindent 12 }}
+          volumeMounts:
+            - name: buildkit-data
+              mountPath: /var/lib/buildkit
       containers:
         - name: buildkitd
           image: {{ .Values.infra.buildkitd.image }}
@@ -260,6 +275,8 @@ spec:
             - "--addr"
             - "tcp://0.0.0.0:1234"
             - "--oci-worker-no-process-sandbox"
+            - "--root"
+            - "/var/lib/buildkit"
             - "--config"
             - "/etc/buildkit/buildkitd.toml"
           env:
@@ -278,10 +295,20 @@ spec:
             - name: buildkit-config
               mountPath: /etc/buildkit/buildkitd.toml
               subPath: buildkitd.toml
+            - name: buildkit-data
+              mountPath: /var/lib/buildkit
       volumes:
         - name: buildkit-config
           configMap:
             name: {{ $.Chart.Name }}-buildkitd-config
+        # Layer cache + content store live on the node (not the ephemeral
+        # container fs), so builds are incremental across pod restarts and
+        # chart upgrades. Single-node hostPath, same pattern as the other
+        # infra services.
+        - name: buildkit-data
+          hostPath:
+            path: {{ .Values.hostPathRoot }}/buildkit
+            type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: ConfigMap

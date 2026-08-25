@@ -37,6 +37,9 @@ infra:
     enabled: true
     image: rucoder-artifact.temp.10.199.64.20.nip.io/moby/buildkit:v0.32.2-rootless
     storage: 100Gi
+    # Build cache + content store persist on the node under
+    # <hostPathRoot>/buildkit (single-node hostPath, like the other infra
+    # services). Enables incremental builds across restarts/chart upgrades.
 nats:
   url: nats://nats.develop.svc.cluster.local:4222
 
