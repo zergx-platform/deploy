@@ -30,9 +30,6 @@ infra:
     enabled: true
     image: rucoder-artifact.temp.10.199.64.20.nip.io/nats:2.14.5-alpine
     storage: 100Gi
-  browserless:
-    enabled: false
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/ghcr.io/browserless/chromium:v2.56.0
   selenium:
     enabled: true
     image: rucoder-artifact.temp.10.199.64.20.nip.io/selenium/standalone-chromium:151.0-20260808
@@ -157,25 +154,11 @@ services:
     containerPort: 8080
     # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
     image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-ops-extension:dev
-  browser-extension:
-    enabled: false
-    port: 80
-    containerPort: 8080
-    # TS extension: browser + browser-tools (playwright/CDP against browserless).
-    # Replaced by webdriver-extension (WebDriver BiDi against selenium).
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-browser-extension:dev
-  webdriver-extension:
-    enabled: false
-    port: 80
-    containerPort: 8080
-    # TS extension: browser tools over WebDriver BiDi (selenium standalone).
-    # Superseded by wdbidi-extension (Go rewrite), same wire id "webdriver".
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-webdriver-extension:dev
   wdbidi-extension:
     enabled: true
     port: 80
     containerPort: 8080
-    # Go rewrite of webdriver-extension: browser tools over WebDriver BiDi.
+    # Browser tools over WebDriver BiDi (selenium standalone).
     image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-wdbidi-extension:dev
   agent:
     enabled: true
@@ -195,9 +178,6 @@ persistence:
   repos:
     enabled: true
     size: 100Gi
-
-browser:
-  cdpUrl: http://browserless.develop.svc.cluster.local:3000
 
 builder:
   registry: rucoder-artifact.temp.10.199.64.20.nip.io

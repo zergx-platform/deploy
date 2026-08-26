@@ -92,7 +92,6 @@ spec:
             - name: NO_PROXY
               value: "localhost,127.0.0.1,.svc.cluster.local,.svc,.nip.io"
           {{- end }}
-          {{- if ne $name "browser-extension" }}
           readinessProbe:
             httpGet:
               {{- if eq $name "artifact" }}
@@ -113,7 +112,6 @@ spec:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 15
-          {{- end }}
           resources:
             {{- if eq $name "artifact" }}
             {{- toYaml (default $.Values.resources $.Values.registryResources) | nindent 12 }}

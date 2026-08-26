@@ -154,58 +154,6 @@ spec:
             type: DirectoryOrCreate
 {{- end }}
 
-{{- if .Values.infra.browserless.enabled }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ $.Chart.Name }}-browserless
-  labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "browserless") | nindent 4 }}
-spec:
-  type: ClusterIP
-  selector:
-    app: {{ $.Chart.Name }}-browserless
-  ports:
-    - name: http
-      port: 3000
-      targetPort: 3000
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ $.Chart.Name }}-browserless
-  labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "browserless") | nindent 4 }}
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: {{ $.Chart.Name }}-browserless
-  template:
-    metadata:
-      labels:
-        app: {{ $.Chart.Name }}-browserless
-    spec:
-      containers:
-        - name: browserless
-          image: {{ .Values.infra.browserless.image }}
-          {{- if $.Values.global.httpProxy }}
-          env:
-            - name: HTTP_PROXY
-              value: {{ $.Values.global.httpProxy | quote }}
-            - name: HTTPS_PROXY
-              value: {{ $.Values.global.httpProxy | quote }}
-            - name: NO_PROXY
-              value: "localhost,127.0.0.1,.svc.cluster.local,.svc"
-          {{- end }}
-          resources:
-            {{- toYaml $.Values.infraResources | nindent 12 }}
-          ports:
-            - name: http
-              containerPort: 3000
-{{- end }}
-
 {{- if .Values.infra.selenium.enabled }}
 ---
 apiVersion: v1
