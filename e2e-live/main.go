@@ -274,4 +274,55 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 
 	r, err = call(sid, "ops", "helm-list", map[string]interface{}{})
 	check("ops.helm-list", err == nil && strings.Contains(r.Content, "rucoder"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	// ---- heavy tools: container-build/deploy + helm lifecycle ----
+	// Unique per-run names so reruns never collide; cleaned up at the end.
+	runTag := fmt.Sprintf("e2e-ops-%d", time.Now().UnixNano())
+	imgTag := "e2e-ops-img"
+	releaseName := "e2e-ops-helm-reprobe"
+
+	// container-build needs a Containerfile in the workspace repo. Write one
+	// via repo-extension (test/dbg1), build it, then deploy from the image.
+	r, err = call("", "repo", "write", map[string]interface{}{
+		"_org": "test", "_repo": "dbg1", "_branch": "main",
+		"path": "Containerfile", "content": "FROM scratch\nCOPY Containerfile /e2e-ops-marker.txt\n",
+		"message": "e2e containerfile",
+	})
+	check("ops.containerfile-seed", err == nil && strings.Contains(r.Content, "已写入"), fmt.Sprintf("err=%v", err))
+
+	r, err = call(sid, "ops", "container-build", map[string]interface{}{
+		"dockerfile_path": "Containerfile", "tag": imgTag,
+	})
+	check("ops.container-build", err == nil && strings.Contains(r.Content, "Finished build"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	// container-deploy: image tag is {tag}:{bookmark} = e2e-ops-img:main.
+	r, err = call(sid, "ops", "container-deploy", map[string]interface{}{
+		"image": imgTag + ":main", "name": runTag,
+	})
+	check("ops.container-deploy", err == nil && strings.Contains(r.Content, "Deployed"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	// helm-install needs a real chart in the workspace. Write a minimal chart,
+	// install it, verify via status, then uninstall.
+	chartFiles := map[string]string{
+		"e2e-chart/Chart.yaml":               "apiVersion: v2\nname: e2e-ops-chart\nversion: 0.1.0\ndescription: e2e\n",
+		"e2e-chart/values.yaml":              "replicaCount: 1\n",
+		"e2e-chart/templates/configmap.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: e2e-ops-probe-cm\ndata:\n  hello: world\n",
+	}
+	for p, c := range chartFiles {
+		_, _ = call("", "repo", "write", map[string]interface{}{
+			"_org": "test", "_repo": "dbg1", "_branch": "main", "path": p, "content": c, "message": "e2e chart",
+		})
+	}
+	r, err = call(sid, "ops", "helm-install", map[string]interface{}{
+		"release_name": releaseName, "chart_path": "e2e-chart",
+	})
+	check("ops.helm-install", err == nil && strings.Contains(r.Content, "Finished helm"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	r, err = call(sid, "ops", "helm-status", map[string]interface{}{"release_name": releaseName})
+	check("ops.helm-status", err == nil && strings.Contains(r.Content, releaseName), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	r, err = call(sid, "ops", "helm-uninstall", map[string]interface{}{"release_name": releaseName})
+	check("ops.helm-uninstall", err == nil && strings.Contains(r.Content, "Uninstalled"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	_ = runTag
 }

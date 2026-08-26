@@ -25,7 +25,7 @@ GOPROXY=http://rucoder-artifact.temp.svc.cluster.local:80/pkgs/go \
 GOSUMDB=off go run .
 ```
 
-期望输出 `RESULT: 30 passed, 0 failed`。
+期望输出 `RESULT: 36 passed, 0 failed`。
 
 ## 覆盖
 
@@ -33,7 +33,7 @@ GOSUMDB=off go run .
 |---|---|
 | memory（id=`memory`） | todowrite / history_search / history_range |
 | repo（id=`repo`） | write / read / ls / grep / edit / git-log / git-branches / explore / git-show / git-diff / git-blame / delete |
-| ops（id=`ops`） | sandbox-write / sandbox-read / sandbox-edit / sandbox-run / sandbox-job-list / sandbox-job-output / sandbox-port / list-containerfile-templates / list-registry-packages / image-list / helm-list |
+| ops（id=`ops`） | sandbox-write / sandbox-read / sandbox-edit / sandbox-run / sandbox-job-list / sandbox-job-output / sandbox-port / list-containerfile-templates / list-registry-packages / image-list / helm-list / container-build / container-deploy / helm-install / helm-status / helm-uninstall |
 
 ## 测试数据与清理
 
@@ -51,6 +51,8 @@ GOSUMDB=off go run .
 - git-show/git-diff 用 `write` 返回的 change_id 作 rev（jj 的 change id，非 commit id）。
 - ops 的 sandbox 工具通过 session 名 `test:dbg1:main` 解析 workspace；sandbox
   文件路径必须是 workspace 内相对路径（绝对路径会被 `path escapes workspace` 拒绝）。
-- ops 的 container-build / package-publish / container-deploy / helm-install /
-  status / uninstall / sandbox-job-wait / stdin / kill 等重副作用工具未纳入
-  本套件（需要 buildkit 真构建、k8s 部署、或会污染集群状态）。
+- ops 的重工具用**唯一运行名**（`e2e-ops-<nanotime>` / 唯一 helm release 名），
+  测后自动清理 deployment 与 helm release；镜像 tag 用固定名 `e2e-ops-img`（会被
+  后续运行覆盖，属测试镜像）。
+- 未纳入（重/时序难控）：package-publish（多协议 CLI 构建）、
+  sandbox-job-wait / stdin / kill（sandbox-run 同步等待完成，job 总是 done）。
