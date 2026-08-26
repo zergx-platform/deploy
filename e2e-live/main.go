@@ -57,6 +57,7 @@ func main() {
 
 	runMemory(ctx, call)
 	runRepo(ctx, call)
+	runOps(ctx, call)
 
 	fmt.Printf("\nRESULT: %d passed, %d failed\n", passed, failed)
 	if failed > 0 {
@@ -210,4 +211,67 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 	}
 	del("/repos/e2e/smoke")
 	del("/repos/e2e")
+}
+
+func runOps(ctx context.Context, call func(string, string, string, map[string]interface{}) (roleagent.ToolResult, error)) {
+	fmt.Println("=== ops-extension (id=ops) ===")
+	// Ops tools resolve the workspace from the session name
+	// (org:repo:bookmark). Use the pre-existing test/dbg1 repo + its already
+	// running sandbox (session test:dbg1:main).
+	sid := "test:dbg1:main"
+
+	// ---- sandbox lifecycle: write → read → edit → read ----
+	r, err := call(sid, "ops", "sandbox-write", map[string]interface{}{
+		"path": "e2e-ops.txt", "content": "line1\nline2\n",
+	})
+	check("ops.sandbox-write", err == nil && strings.Contains(r.Content, "Wrote"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	r, err = call(sid, "ops", "sandbox-read", map[string]interface{}{"path": "e2e-ops.txt"})
+	check("ops.sandbox-read", err == nil && strings.Contains(r.Content, "line1") && strings.Contains(r.Content, "line2"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	r, err = call(sid, "ops", "sandbox-edit", map[string]interface{}{
+		"path": "e2e-ops.txt", "start_line": 1, "end_line": 1, "content": "line1-EDITED",
+	})
+	check("ops.sandbox-edit", err == nil && strings.Contains(r.Content, "Edited"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	r, err = call(sid, "ops", "sandbox-read", map[string]interface{}{"path": "e2e-ops.txt"})
+	check("ops.sandbox-read-after-edit", err == nil && strings.Contains(r.Content, "line1-EDITED") && !strings.Contains(r.Content, "\nline1\n"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	// ---- sandbox-run (streamed job) ----
+	r, err = call(sid, "ops", "sandbox-run", map[string]interface{}{"command": "echo ops-e2e-hello"})
+	check("ops.sandbox-run", err == nil && strings.Contains(r.Content, "ops-e2e-hello"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	meta, _ := r.Metadata.(map[string]interface{})
+	jobID, _ := meta["job_id"].(string)
+
+	// ---- sandbox-job-list ----
+	r, err = call(sid, "ops", "sandbox-job-list", map[string]interface{}{})
+	check("ops.sandbox-job-list", err == nil && strings.Contains(r.Content, jobID), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	// ---- sandbox-job-output (job from sandbox-run) ----
+	r, err = call(sid, "ops", "sandbox-job-output", map[string]interface{}{"job_id": jobID})
+	check("ops.sandbox-job-output", err == nil && strings.Contains(r.Content, "ops-e2e-hello"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	// ---- sandbox-port (sandbox file → repo) ----
+	r, err = call(sid, "ops", "sandbox-write", map[string]interface{}{
+		"path": "port-e2e.txt", "content": "ported-e2e-content\n",
+	})
+	check("ops.sandbox-write-port", err == nil, fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	r, err = call(sid, "ops", "sandbox-port", map[string]interface{}{
+		"sandbox_path": "port-e2e.txt", "repo_path": "ported-e2e.txt", "message": "e2e port",
+	})
+	check("ops.sandbox-port", err == nil && strings.Contains(r.Content, "Ported"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	// ---- stateless tools ----
+	r, err = call(sid, "ops", "list-containerfile-templates", map[string]interface{}{})
+	check("ops.list-containerfile-templates", err == nil && strings.Contains(r.Content, "cargo"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	r, err = call(sid, "ops", "list-registry-packages", map[string]interface{}{})
+	check("ops.list-registry-packages", err == nil && strings.Contains(r.Content, "abep.dev/sdk"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	r, err = call(sid, "ops", "image-list", map[string]interface{}{})
+	check("ops.image-list", err == nil && strings.Contains(r.Content, "rucoder-agent-ts"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+
+	r, err = call(sid, "ops", "helm-list", map[string]interface{}{})
+	check("ops.helm-list", err == nil && strings.Contains(r.Content, "rucoder"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 }
