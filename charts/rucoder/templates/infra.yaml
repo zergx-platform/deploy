@@ -198,7 +198,11 @@ spec:
             - name: SE_NODE_OVERRIDE_MAX_SESSIONS
               value: "true"
           resources:
+            {{- if .Values.infra.selenium.resources }}
+            {{- toYaml .Values.infra.selenium.resources | nindent 12 }}
+            {{- else }}
             {{- toYaml $.Values.infraResources | nindent 12 }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 4444
