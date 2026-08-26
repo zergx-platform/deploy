@@ -3,3 +3,4 @@ node_modules/
 dist/
 /dist/
 *.log
+e2e-live/e2e-live
