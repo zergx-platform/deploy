@@ -165,11 +165,18 @@ services:
     # Replaced by webdriver-extension (WebDriver BiDi against selenium).
     image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-browser-extension:dev
   webdriver-extension:
-    enabled: true
+    enabled: false
     port: 80
     containerPort: 8080
     # TS extension: browser tools over WebDriver BiDi (selenium standalone).
+    # Superseded by wdbidi-extension (Go rewrite), same wire id "webdriver".
     image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-webdriver-extension:dev
+  wdbidi-extension:
+    enabled: true
+    port: 80
+    containerPort: 8080
+    # Go rewrite of webdriver-extension: browser tools over WebDriver BiDi.
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-wdbidi-extension:dev
   agent:
     enabled: true
     port: 80
