@@ -3,8 +3,8 @@ module e2e-live
 go 1.26
 
 require (
-	abep.dev/sdk v0.2.7
-	abep.dev/sdk/nats v0.2.1
+	abep.dev/sdk v0.2.8
+	abep.dev/sdk/nats v0.2.2
 	github.com/jackc/pgx/v5 v5.10.0
 )
 

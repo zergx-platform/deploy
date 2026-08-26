@@ -52,7 +52,7 @@ func main() {
 	call := func(session, ext, tool string, args map[string]interface{}) (roleagent.ToolResult, error) {
 		c, cancel := context.WithTimeout(ctx, 20*time.Second)
 		defer cancel()
-		return agent.CallTool(c, session, ext, tool, "e2e-"+tool, args, func(string) {})
+		return agent.CallTool(c, session, ext, tool, "e2e-"+tool, args)
 	}
 
 	runMemory(ctx, call)
