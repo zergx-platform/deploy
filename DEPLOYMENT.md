@@ -16,14 +16,14 @@
 | repo-extension | `repo-extension/` | Go | `rucoder-repo-extension:dev` | 文件/git 工具层 |
 | memory-extension | `memory-extension/` | Go | `rucoder-memory-extension:dev` | 会话记忆 |
 | ops-extension | `ops-extension/` | Go（内嵌 Svelte SPA） | `rucoder-ops-extension:dev` | 构建/发布/沙箱工具层 |
-| browser-extension | `browser-extension/` | TypeScript | `rucoder-browser-extension:dev` | 浏览器工具 |
+| wdbidi-extension | `wdbidi-extension/` | Go | `rucoder-wdbidi-extension:dev` | 浏览器工具（WebDriver BiDi） |
 | worker-go | `worker-go/` | Go | `rucoder-worker:dev` | 沙箱 worker（session 内 pod） |
 | gateway-go | `gateway-go/` | Go（内嵌 SPA） | `rucoder-gateway-go:dev` | 聚合网关 |
-| extension-sdk-go | `extension-sdk-go/` | Go module | `forgejo.../rucoder/extension-sdk-go@v0.x.y` | Go 扩展 SDK |
-| extension-sdk-ts | `extension-sdk-ts/` | TypeScript | `@rucoder-agent/extension-sdk@0.x.y` | TS 扩展 SDK |
+| abep-sdk-go | `abep-sdk-go/` | Go module | `abep.dev/sdk@v0.x.y` | Go 扩展 SDK |
+| abep-sdk-ts | `abep-sdk-ts/` | TypeScript | `abep-sdk@0.x.y` | TS 扩展 SDK |
 
 **基础设施镜像**（由 chart 拉取，非本仓库构建）：`postgres:18-alpine3.24`、`nats:2.14.5-alpine`、
-`browserless:latest`、`moby/buildkit:v0.32.2-rootless`。
+`selenium/standalone-chromium:151.0`、`moby/buildkit:v0.32.2-rootless`。
 
 ### 关键地址约定
 
@@ -44,7 +44,7 @@
 
 提交前必须过对应语言的检查。**没有统一的 `make gate`** —— 各语言各用各的：
 
-### TypeScript 项目（agent-ts / browser-extension / extension-sdk-ts）
+### TypeScript 项目（agent-ts / abep-sdk-ts）
 
 ```bash
 # agent-ts（monorepo：schema/agent/server/ui）
@@ -54,12 +54,11 @@ npx biome check .        # lint + 格式
 npx vitest run           # 单元测试（12 文件，55+ 用例）
 npm run build            # 完整构建（含 SEA 单二进制）
 
-# browser-extension / extension-sdk-ts
-cd browser-extension && npm run build   # tsc --noEmit
-cd extension-sdk-ts    && npm run build  # tsc --noEmit
+# abep-sdk-ts
+cd abep-sdk-ts && npm run build   # tsc --noEmit
 ```
 
-### Go 项目（artifact / 各 extension / gateway / worker / extension-sdk-go）
+### Go 项目（artifact / 各 extension / gateway / worker / abep-sdk-go）
 
 ```bash
 cd <service>
@@ -115,13 +114,13 @@ helm 部署（第 7 节）
 
 两个 SDK 都必须发布到 artifact，**不允许**直接依赖本地路径或 forgejo 源码。
 
-### 3.1 extension-sdk-go（Go module → artifact `/pkgs/go`）
+### 3.1 abep-sdk-go（Go module → artifact `/pkgs/go`）
 
 Go module 的“注册表”天然是 git tag，但本项目的消费方统一走 artifact 的 GOPROXY 镜像。
 发布分两步：**git tag** + **module zip 上传 artifact**。
 
 ```bash
-cd extension-sdk-go
+cd abep-sdk-go
 
 # 1. 过门禁
 go build ./... && go vet ./... && go test ./...
@@ -129,13 +128,13 @@ go build ./... && go vet ./... && go test ./...
 # 2. 提交 + 打 tag（tag 版本号与 go.mod 消费方一致）
 git add -A
 git commit -m "feat: ..."
-git tag v0.1.8                 # 新版本号（每次递增）
+git tag v0.2.8                 # 新版本号（每次递增）
 git push origin master
-git push origin v0.1.8
+git push origin v0.2.8
 
 # 3. 打包 module zip 并 PUT 到 artifact go upload 端点
-VER=v0.1.8
-NAME=forgejo.develop.10.199.64.20.nip.io/rucoder/extension-sdk-go
+VER=v0.2.8
+NAME=abep.dev/sdk
 python3 - <<EOF
 import io, os, urllib.parse, urllib.request, zipfile
 name, ver = "$NAME", "$VER"
@@ -155,29 +154,29 @@ EOF
 ```
 
 > **关键点**：tag 必须先推到 forgejo。`go mod download` 会用 tag 校验版本存在性；
-> 只传 zip 不打 tag，消费方会报 `invalid version: unknown revision v0.1.8`。
+> 只传 zip 不打 tag，消费方会报 `invalid version: unknown revision v0.2.8`。
 
-### 3.2 extension-sdk-ts（npm → artifact `/pkgs/npm`）
+### 3.2 abep-sdk-ts（npm → artifact `/pkgs/npm`）
 
 ```bash
-cd extension-sdk-ts
+cd abep-sdk-ts/packages/abep-sdk      # 或 packages/abep-sdk-nats
 
 # 1. 过门禁
 npm run build          # tsc --noEmit
 
 # 2. bump 版本（npm 不允许覆盖已发布版本）
-#    package.json: "version": "0.1.1" → "0.1.2"
-sed -i 's/"version": "0.1.1"/"version": "0.1.2"/' package.json
+#    package.json: "version": "0.2.3" → "0.2.4"
+#    abep-sdk-nats 里同名的 abep-sdk 依赖版本同步 bump
 
 # 3. 提交 + push
-git add -A && git commit -m "chore: bump 0.1.2" && git push origin master
+git add -A && git commit -m "chore: bump 0.2.4" && git push origin master
 
 # 4. 发布到 artifact npm（anonymous：需要一条 _authToken 配置绕过 npm 的 auth 前置检查）
 npm config set //rucoder-artifact.temp.svc.cluster.local/pkgs/npm/:_authToken npm-anonymous --location=project
 npm publish --registry http://rucoder-artifact.temp.svc.cluster.local/pkgs/npm/
 
 # 5. 清理临时 .npmrc 与 tgz（不要提交）
-rm -f .npmrc rucoder-agent-extension-sdk-*.tgz
+rm -f .npmrc *.tgz
 ```
 
 > **注意**：npm 对已存在版本会 `You cannot publish over the previously published
@@ -191,25 +190,26 @@ rm -f .npmrc rucoder-agent-extension-sdk-*.tgz
 
 SDK 发布后，所有依赖它的服务必须 bump 版本、重新过门禁、重新构建。
 
-### 4.1 Go 服务（依赖 extension-sdk-go：repo-extension / memory-extension / ops-extension）
+### 4.1 Go 服务（依赖 abep-sdk-go：repo-extension / memory-extension / ops-extension / wdbidi-extension）
 
 ```bash
-for d in repo-extension memory-extension ops-extension; do
+for d in repo-extension memory-extension ops-extension wdbidi-extension; do
   cd $d
   # 1. bump go.mod 里的版本
-  sed -i 's#extension-sdk-go v0.1.7#extension-sdk-go v0.1.8#' go.mod
+  sed -i 's#abep.dev/sdk v0.2.7#abep.dev/sdk v0.2.8#' go.mod
+  sed -i 's#abep.dev/sdk/nats v0.2.1#abep.dev/sdk/nats v0.2.2#' go.mod
 
   # 2. 用 artifact GOPROXY 重新解析 go.sum（必须 GOSUMDB=off，私有模块无公共 sumdb）
   GOPROXY=http://rucoder-artifact.temp.svc.cluster.local/pkgs/go \
   GOSUMDB=off GOFLAGS=-mod=mod \
-  go mod download forgejo.develop.10.199.64.20.nip.io/rucoder/extension-sdk-go
+  go mod download abep.dev/sdk abep.dev/sdk/nats
 
   # 3. 过门禁
   go build ./... && go vet ./... && go test ./...
 
   # 4. 提交 + push
   git add go.mod go.sum
-  git commit -m "chore(deps): bump extension-sdk-go v0.1.7 -> v0.1.8"
+  git commit -m "chore(deps): bump abep-sdk-go"
   git push origin master
   cd ..
 done
@@ -217,32 +217,6 @@ done
 
 > **注意**：若 `go.mod` 之前残留了本地 `replace` 指令，务必 `go mod edit -dropreplace`
 > 再重新下载，否则 CI/构建机拿不到本地路径。
-
-### 4.2 TS 服务（依赖 extension-sdk-ts：browser-extension）
-
-```bash
-cd browser-extension
-
-# 1. bump package.json 依赖版本
-sed -i 's#"@rucoder-agent/extension-sdk": "\^0.1.1"#"@rucoder-agent/extension-sdk": "^0.1.2"#' package.json
-
-# 2. 更新 package-lock.json（npm install 的 audit 端点可能报错，可直接从 artifact 拿 integrity 手改）
-#    方式 A（可用时）：
-npm install --ignore-scripts --package-lock-only \
-  --registry http://rucoder-artifact.temp.svc.cluster.local/pkgs/npm/
-#    方式 B（npm audit 报错时）：从 artifact 元数据取 integrity 手改 lock
-curl -s http://rucoder-artifact.temp.svc.cluster.local/pkgs/npm/@rucoder-agent%2fextension-sdk \
-  | python3 -c 'import json,sys; print(json.load(sys.stdin)["versions"]["0.1.2"]["dist"]["integrity"])'
-# 然后把 package-lock.json 里 sdk 条目的 version/resolved/integrity 三处改为新值
-
-# 3. 过门禁
-npm run build          # tsc --noEmit
-
-# 4. 提交 + push
-git add package.json package-lock.json
-git commit -m "chore(deps): bump @rucoder-agent/extension-sdk to ^0.1.2"
-git push origin master
-```
 
 ---
 
@@ -334,7 +308,7 @@ curl -sN "$OPS/api/v1/builds/$BID/stream"
 | repo-extension | repo-extension | rucoder-repo-extension |
 | memory-extension | memory-extension | rucoder-memory-extension |
 | ops-extension | ops-extension | rucoder-ops-extension |
-| browser-extension | browser-extension | rucoder-browser-extension |
+| wdbidi-extension | wdbidi-extension | rucoder-wdbidi-extension |
 | gateway-go | gateway-go | rucoder-gateway-go |
 | artifact（go-registry） | go-registry | go-registry |
 
@@ -391,7 +365,7 @@ helm -n temp upgrade rucoder charts/rucoder
 
 ```bash
 for d in rucoder-agent rucoder-worker rucoder-repo rucoder-repo-extension \
-         rucoder-memory-tools rucoder-ops-extension rucoder-browser-extension \
+         rucoder-memory-tools rucoder-ops-extension rucoder-wdbidi-extension \
          rucoder-gateway; do
   kubectl -n temp rollout restart deployment/$d
   kubectl -n temp rollout status deployment/$d --timeout=180s
@@ -410,7 +384,7 @@ done
 kubectl -n temp get pods -o wide
 
 # 2. 健康检查
-for svc in rucoder-agent rucoder-browser-extension rucoder-memory-tools \
+for svc in rucoder-agent rucoder-wdbidi-extension rucoder-memory-tools \
            rucoder-ops-extension rucoder-repo-extension; do
   curl -s -o /dev/null -w "$svc -> %{http_code}\n" \
     "http://$svc.temp.svc.cluster.local/api/v1/health"
