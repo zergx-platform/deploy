@@ -206,6 +206,62 @@ spec:
               containerPort: 3000
 {{- end }}
 
+{{- if .Values.infra.selenium.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Chart.Name }}-selenium
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "selenium") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $.Chart.Name }}-selenium
+  ports:
+    - name: http
+      port: 4444
+      targetPort: 4444
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Chart.Name }}-selenium
+  labels:
+    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "selenium") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $.Chart.Name }}-selenium
+  template:
+    metadata:
+      labels:
+        app: {{ $.Chart.Name }}-selenium
+    spec:
+      containers:
+        - name: selenium
+          image: {{ .Values.infra.selenium.image }}
+          env:
+            - name: SE_ENABLE_MANAGED_DOWNLOADS
+              value: "false"
+            - name: SE_NODE_MAX_SESSIONS
+              value: "8"
+            - name: SE_NODE_OVERRIDE_MAX_SESSIONS
+              value: "true"
+          resources:
+            {{- toYaml $.Values.infraResources | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 4444
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+{{- end }}
+
 {{- if .Values.infra.buildkitd.enabled }}
 ---
 apiVersion: v1

@@ -31,8 +31,11 @@ infra:
     image: rucoder-artifact.temp.10.199.64.20.nip.io/nats:2.14.5-alpine
     storage: 100Gi
   browserless:
+    enabled: false
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/ghcr.io/browserless/chromium:v2.56.0
+  selenium:
     enabled: true
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/browserless:latest
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/selenium/standalone-chromium:151.0-20260808
   buildkitd:
     enabled: true
     image: rucoder-artifact.temp.10.199.64.20.nip.io/moby/buildkit:v0.32.2-rootless
@@ -135,7 +138,7 @@ services:
     # IfNotPresent and the kubelet never re-resolves a floating tag, so a
     # rebuilt :dev would never roll out. Bump this digest whenever the
     # go-registry image is rebuilt (buildctl push prints the sha256).
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/go-registry@sha256:a6778a101a2d182f3c1364f253c42a1a60e0967a167fb61b5f6667badac9a776
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/go-registry@sha256:46271db030377a27d1573fe71c0cf9a941cc610a56e9495ff8efb640ac33ef6d
   repo:
     enabled: true
     port: 80
@@ -155,11 +158,18 @@ services:
     # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
     image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-ops-extension:dev
   browser-extension:
+    enabled: false
+    port: 80
+    containerPort: 8080
+    # TS extension: browser + browser-tools (playwright/CDP against browserless).
+    # Replaced by webdriver-extension (WebDriver BiDi against selenium).
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-browser-extension:dev
+  webdriver-extension:
     enabled: true
     port: 80
     containerPort: 8080
-    # TS extension: browser + browser-tools.
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-browser-extension:dev
+    # TS extension: browser tools over WebDriver BiDi (selenium standalone).
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-webdriver-extension:dev
   agent:
     enabled: true
     port: 80

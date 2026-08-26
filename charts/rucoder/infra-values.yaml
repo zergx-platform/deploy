@@ -23,8 +23,11 @@ infra:
     secretKey: devpassword
     bucket: rucoder-blobs
   browserless:
+    enabled: false
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/ghcr.io/browserless/chromium:v2.56.0
+  selenium:
     enabled: true
-    image: browserless/chrome:latest
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/selenium/standalone-chromium:151.0-20260808
   buildkitd:
     enabled: true
     image: rucoder-artifact.temp.10.199.64.20.nip.io/moby/buildkit:v0.32.2-rootless
