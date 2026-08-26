@@ -135,7 +135,7 @@ services:
     # IfNotPresent and the kubelet never re-resolves a floating tag, so a
     # rebuilt :dev would never roll out. Bump this digest whenever the
     # go-registry image is rebuilt (buildctl push prints the sha256).
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/go-registry@sha256:5fe3d2434cbe9e15318f5ac74f7012bbe9465c35110edaadf9df020586dec166
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/go-registry@sha256:a6778a101a2d182f3c1364f253c42a1a60e0967a167fb61b5f6667badac9a776
   repo:
     enabled: true
     port: 80
