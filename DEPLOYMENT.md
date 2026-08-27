@@ -1,6 +1,6 @@
-# rucoder-neo 上线流程（Deployment Runbook）
+# zergx 上线流程（Deployment Runbook）
 
-> 本文档描述 rucoder-neo **多语言（TypeScript / Go / Rust）** 单仓库的完整上线流程：
+> 本文档描述 zergx **多语言（TypeScript / Go / Rust）** 单仓库的完整上线流程：
 > 从代码提交 → SDK 发布 → jj-server 同步 → ops-extension 异步构建 → helm 部署 → 验证。
 > 所有命令均以当前集群环境为准（namespace `temp`，单节点 hostPath 存储）。
 
@@ -8,17 +8,17 @@
 
 ## 0. 项目总览：语言与服务清单
 
-| 服务 | 源码目录 | 语言 | 镜像名（`rucoder-artifact.temp.10.199.64.20.nip.io/...`） | 角色 |
+| 服务 | 源码目录 | 语言 | 镜像名（`zergx-artifact.temp.10.199.64.20.nip.io/...`） | 角色 |
 |---|---|---|---|---|
-| agent | `agent-ts/` | TypeScript（Vercel AI SDK） | `rucoder-agent-ts:v0.0.1` | 中枢 agent |
+| agent | `agent-ts/` | TypeScript（Vercel AI SDK） | `zergx-agent-ts:v0.0.1` | 中枢 agent |
 | artifact | `artifact/` | Go | `go-registry@<sha256>`（**digest 固定**） | 包/O CI registry（自托管） |
-| jj-server | `jj-server/` | Rust | `rucoder-repo:v0.0.1` | 仓库/jj 后端 |
-| repo-extension | `repo-extension/` | Go | `rucoder-repo-extension:v0.0.1` | 文件/git 工具层 |
-| memory-extension | `memory-extension/` | Go | `rucoder-memory-extension:v0.0.1` | 会话记忆 |
-| ops-extension | `ops-extension/` | Go（内嵌 Svelte SPA） | `rucoder-ops-extension:v0.0.1` | 构建/发布/沙箱工具层 |
-| wdbidi-extension | `wdbidi-extension/` | Go | `rucoder-wdbidi-extension:v0.0.1` | 浏览器工具（WebDriver BiDi） |
-| worker-go | `worker-go/` | Go | `rucoder-worker:v0.0.1` | 沙箱 worker（session 内 pod） |
-| gateway-go | `gateway-go/` | Go（内嵌 SPA） | `rucoder-gateway-go:v0.0.1` | 聚合网关 |
+| jj-server | `jj-server/` | Rust | `zergx-repo:v0.0.1` | 仓库/jj 后端 |
+| repo-extension | `repo-extension/` | Go | `zergx-repo-extension:v0.0.1` | 文件/git 工具层 |
+| memory-extension | `memory-extension/` | Go | `zergx-memory-extension:v0.0.1` | 会话记忆 |
+| ops-extension | `ops-extension/` | Go（内嵌 Svelte SPA） | `zergx-ops-extension:v0.0.1` | 构建/发布/沙箱工具层 |
+| wdbidi-extension | `wdbidi-extension/` | Go | `zergx-wdbidi-extension:v0.0.1` | 浏览器工具（WebDriver BiDi） |
+| worker-go | `worker-go/` | Go | `zergx-worker:v0.0.1` | 沙箱 worker（session 内 pod） |
+| gateway-go | `gateway-go/` | Go（内嵌 SPA） | `zergx-gateway-go:v0.0.1` | 聚合网关 |
 | abep-sdk-go | `abep-sdk-go/` | Go module | `abep.dev/sdk@v0.x.y` | Go 扩展 SDK |
 | abep-sdk-ts | `abep-sdk-ts/` | TypeScript | `abep-sdk@0.x.y` | TS 扩展 SDK |
 
@@ -29,13 +29,13 @@
 
 | 项 | 值 |
 |---|---|
-| Git 远端（统一 forgejo） | `https://forgejo.develop.10.199.64.20.nip.io/rucoder/<repo>.git` |
-| OCI/包 registry | `rucoder-artifact.temp.10.199.64.20.nip.io`（svc 内 `rucoder-artifact.temp.svc.cluster.local`） |
-| Go module registry（GOPROXY） | `http://rucoder-artifact.temp.svc.cluster.local/pkgs/go` |
-| npm registry | `http://rucoder-artifact.temp.svc.cluster.local/pkgs/npm/` |
-| jj-server | `http://rucoder-repo.temp.svc.cluster.local` |
-| ops-extension 构建接口 | `http://rucoder-ops-extension.temp.svc.cluster.local/api/v1/images/build` |
-| buildkitd | `tcp://rucoder-buildkitd.temp.svc.cluster.local:1234` |
+| Git 远端（统一 forgejo） | `https://forgejo.develop.10.199.64.20.nip.io/zergx/<repo>.git` |
+| OCI/包 registry | `zergx-artifact.temp.10.199.64.20.nip.io`（svc 内 `zergx-artifact.temp.svc.cluster.local`） |
+| Go module registry（GOPROXY） | `http://zergx-artifact.temp.svc.cluster.local/pkgs/go` |
+| npm registry | `http://zergx-artifact.temp.svc.cluster.local/pkgs/npm/` |
+| jj-server | `http://zergx-repo.temp.svc.cluster.local` |
+| ops-extension 构建接口 | `http://zergx-ops-extension.temp.svc.cluster.local/api/v1/images/build` |
+| buildkitd | `tcp://zergx-buildkitd.temp.svc.cluster.local:1234` |
 | 构建源码事实源 | jj-server `build` org（每 repo 有 `master`/`dev` bookmark） |
 
 ---
@@ -81,7 +81,7 @@ cargo clippy --all-targets -- -D warnings   # lint（如有配置）
 ```bash
 # 部署后验证全链路（prompt → NATS → consumer → PG → LLM → 回复）
 cd agent-ts
-AGENT_BASE=http://rucoder-agent.temp.svc.cluster.local bash scripts/smoke.sh
+AGENT_BASE=http://zergx-agent.temp.svc.cluster.local bash scripts/smoke.sh
 ```
 
 ---
@@ -138,7 +138,7 @@ NAME=abep.dev/sdk
 python3 - <<EOF
 import io, os, urllib.parse, urllib.request, zipfile
 name, ver = "$NAME", "$VER"
-base = "http://rucoder-artifact.temp.svc.cluster.local"
+base = "http://zergx-artifact.temp.svc.cluster.local"
 buf = io.BytesIO()
 with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
     for root, dirs, files in os.walk("."):
@@ -172,8 +172,8 @@ npm run build          # tsc --noEmit
 git add -A && git commit -m "chore: bump 0.2.4" && git push origin master
 
 # 4. 发布到 artifact npm（anonymous：需要一条 _authToken 配置绕过 npm 的 auth 前置检查）
-npm config set //rucoder-artifact.temp.svc.cluster.local/pkgs/npm/:_authToken npm-anonymous --location=project
-npm publish --registry http://rucoder-artifact.temp.svc.cluster.local/pkgs/npm/
+npm config set //zergx-artifact.temp.svc.cluster.local/pkgs/npm/:_authToken npm-anonymous --location=project
+npm publish --registry http://zergx-artifact.temp.svc.cluster.local/pkgs/npm/
 
 # 5. 清理临时 .npmrc 与 tgz（不要提交）
 rm -f .npmrc *.tgz
@@ -200,7 +200,7 @@ for d in repo-extension memory-extension ops-extension wdbidi-extension; do
   sed -i 's#abep.dev/sdk/nats v0.2.1#abep.dev/sdk/nats v0.2.2#' go.mod
 
   # 2. 用 artifact GOPROXY 重新解析 go.sum（必须 GOSUMDB=off，私有模块无公共 sumdb）
-  GOPROXY=http://rucoder-artifact.temp.svc.cluster.local/pkgs/go \
+  GOPROXY=http://zergx-artifact.temp.svc.cluster.local/pkgs/go \
   GOSUMDB=off GOFLAGS=-mod=mod \
   go mod download abep.dev/sdk abep.dev/sdk/nats
 
@@ -228,7 +228,7 @@ done
 ```bash
 REPO=ops-extension   # 改成实际服务目录名（见第 0 节映射）
 ORG=build
-JJ=http://rucoder-repo.temp.svc.cluster.local
+JJ=http://zergx-repo.temp.svc.cluster.local
 
 # 1. 删除旧 repo（连续两次，防 jj init 残留目录竞态）
 curl -s -X DELETE "$JJ/api/v1/repos/$ORG/$REPO"
@@ -238,7 +238,7 @@ sleep 2
 
 # 2. 重新 clone（git_url 必须带认证，否则 self-signed Gitea 会卡在 Username 提示）
 curl -s -X POST -H 'Content-Type: application/json' \
-  -d "{\"org\":\"$ORG\",\"repo\":\"$REPO\",\"git_url\":\"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/rucoder/$REPO.git\"}" \
+  -d "{\"org\":\"$ORG\",\"repo\":\"$REPO\",\"git_url\":\"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/zergx/$REPO.git\"}" \
   "$JJ/api/v1/repos/clone"
 # 期望：{"head":"<commit-sha>","ok":true}
 
@@ -261,7 +261,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 用 ops-extension 的 `/images/build` 接口（**异步**：立即返回 `build_id`，后台构建）。
 
 ```bash
-OPS=http://rucoder-ops-extension.temp.svc.cluster.local
+OPS=http://zergx-ops-extension.temp.svc.cluster.local
 
 # repo 模式（标准路径）：从 jj-server 拉源码构建
 curl -s -X POST -H 'Content-Type: application/json' \
@@ -269,7 +269,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
     "org": "build",
     "repo": "ops-extension",       # jj-server build org 里的 repo 名
     "bookmark": "dev",             # 决定镜像 tag 后缀
-    "tag": "rucoder-ops-extension",# 镜像名（见第 0 节映射）
+    "tag": "zergx-ops-extension",# 镜像名（见第 0 节映射）
     "dockerfile": "Dockerfile",
     "push": true
   }' "$OPS/api/v1/images/build"
@@ -303,20 +303,20 @@ curl -sN "$OPS/api/v1/builds/$BID/stream"
 
 | 源码目录 | jj build org repo 名 | `tag` 参数（镜像名） |
 |---|---|---|
-| agent-ts | agent-ts | rucoder-agent-ts |
-| worker-go | worker-go | rucoder-worker |
-| jj-server | jj-server | rucoder-repo |
-| repo-extension | repo-extension | rucoder-repo-extension |
-| memory-extension | memory-extension | rucoder-memory-extension |
-| ops-extension | ops-extension | rucoder-ops-extension |
-| wdbidi-extension | wdbidi-extension | rucoder-wdbidi-extension |
-| gateway-go | gateway-go | rucoder-gateway-go |
+| agent-ts | agent-ts | zergx-agent-ts |
+| worker-go | worker-go | zergx-worker |
+| jj-server | jj-server | zergx-repo |
+| repo-extension | repo-extension | zergx-repo-extension |
+| memory-extension | memory-extension | zergx-memory-extension |
+| ops-extension | ops-extension | zergx-ops-extension |
+| wdbidi-extension | wdbidi-extension | zergx-wdbidi-extension |
+| gateway-go | gateway-go | zergx-gateway-go |
 | artifact（go-registry） | go-registry | go-registry |
 
 > **artifact 特殊**：镜像用 **digest 固定**（`IfNotPresent` + 浮动 tag 会导致 kubelet
 > 永不重拉）。重建 go-registry 后，必须：
 > 1. 拿到新 digest（`/v2/go-registry/manifests/dev` 的 `Docker-Content-Digest`）；
-> 2. 更新 `deploy/charts/rucoder/values.yaml` 里 `services.artifact.image` 的 `@sha256:...`；
+> 2. 更新 `deploy/charts/zergx/values.yaml` 里 `services.artifact.image` 的 `@sha256:...`；
 > 3. `helm upgrade`（见第 7 节）。
 
 ### 构建耗时与失败排查
@@ -335,13 +335,13 @@ curl -sN "$OPS/api/v1/builds/$BID/stream"
 cd deploy
 
 # 1. 渲染校验（dry-run）
-helm template rucoder charts/rucoder
+helm template zergx charts/zergx
 
 # 2. 升级（若现网被 kubectl 手动改过 image/args，会报 conflict）
-helm -n temp upgrade rucoder charts/rucoder
+helm -n temp upgrade zergx charts/zergx
 
 # 3. 幂等复跑（确认无 drift）
-helm -n temp upgrade rucoder charts/rucoder
+helm -n temp upgrade zergx charts/zergx
 ```
 
 ### 若 helm 报 conflict（历史遗留的 kubectl-set/patch 污染）
@@ -354,12 +354,12 @@ conflict occurred while applying ... with "kubectl-set" using apps/v1: .spec...i
 
 ```bash
 # 方式 A：清 last-applied 注解让 helm 接管
-kubectl -n temp annotate deployment rucoder-artifact \
+kubectl -n temp annotate deployment zergx-artifact \
   kubectl.kubernetes.io/last-applied-configuration-
 
 # 方式 B：直接删 deployment，helm upgrade 会重建
-kubectl -n temp delete deployment rucoder-artifact
-helm -n temp upgrade rucoder charts/rucoder
+kubectl -n temp delete deployment zergx-artifact
+helm -n temp upgrade zergx charts/zergx
 ```
 
 ### 版本化发版 + 滚动升级
@@ -367,16 +367,16 @@ helm -n temp upgrade rucoder charts/rucoder
 镜像固定语义化版本（`v0.0.x`），不再用浮动 `:dev`。升级某服务：
 
 ```bash
-for d in rucoder-agent rucoder-worker rucoder-repo rucoder-repo-extension \
-         rucoder-memory-tools rucoder-ops-extension rucoder-wdbidi-extension \
-         rucoder-gateway; do
+for d in zergx-agent zergx-worker zergx-repo zergx-repo-extension \
+         zergx-memory-tools zergx-ops-extension zergx-wdbidi-extension \
+         zergx-gateway; do
   kubectl -n temp rollout restart deployment/$d
   kubectl -n temp rollout status deployment/$d --timeout=180s
 done
 ```
 
 > **注意 deployment 名与镜像名不同**：memory-extension 的 deployment 叫
-> `rucoder-memory-tools`（历史命名）。用 `kubectl get deploy` 确认。
+> `zergx-memory-tools`（历史命名）。用 `kubectl get deploy` 确认。
 
 ---
 
@@ -387,19 +387,19 @@ done
 kubectl -n temp get pods -o wide
 
 # 2. 健康检查
-for svc in rucoder-agent rucoder-wdbidi-extension rucoder-memory-tools \
-           rucoder-ops-extension rucoder-repo-extension; do
+for svc in zergx-agent zergx-wdbidi-extension zergx-memory-tools \
+           zergx-ops-extension zergx-repo-extension; do
   curl -s -o /dev/null -w "$svc -> %{http_code}\n" \
     "http://$svc.temp.svc.cluster.local/api/v1/health"
 done
 
 # 3. agent 主线冒烟（创建会话 → prompt → 断言 assistant 回复）
 cd agent-ts
-AGENT_BASE=http://rucoder-agent.temp.svc.cluster.local bash scripts/smoke.sh
+AGENT_BASE=http://zergx-agent.temp.svc.cluster.local bash scripts/smoke.sh
 
 # 4. registry 镜像 tag 可拉取
 curl -s -I -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
-  http://rucoder-artifact.temp.svc.cluster.local/v2/<镜像名>/manifests/dev | head -1
+  http://zergx-artifact.temp.svc.cluster.local/v2/<镜像名>/manifests/dev | head -1
 ```
 
 ---
@@ -417,7 +417,7 @@ curl -s -I -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
 | npm 覆盖旧版本 | `cannot publish over previously published` | bump 版本号 |
 | npm publish 报 ENEEDAUTH | registry 匿名但 npm 前置登录 | 配 `_authToken` 假令牌 |
 | jj-server 数据丢失 | 每次重启 DROP 全部会话 | 已改 additive DDL（勿再引入 DROP） |
-| sandbox pod 拉不到 worker | `rucoder-worker:v0.0.1 not found` | 必须先构建 worker-go 镜像 |
+| sandbox pod 拉不到 worker | `zergx-worker:v0.0.1 not found` | 必须先构建 worker-go 镜像 |
 
 ---
 
@@ -431,11 +431,11 @@ go build ./... && go vet ./... && go test ./...        # 门禁
 git add -A && git commit -m "fix: ..." && git push origin master   # 提交
 
 # 同步 jj-server（第 5 节）
-JJ=http://rucoder-repo.temp.svc.cluster.local
+JJ=http://zergx-repo.temp.svc.cluster.local
 curl -s -X DELETE "$JJ/api/v1/repos/build/ops-extension"; sleep 2
 curl -s -X DELETE "$JJ/api/v1/repos/build/ops-extension"; sleep 2
 curl -s -X POST -H 'Content-Type: application/json' \
-  -d '{"org":"build","repo":"ops-extension","git_url":"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/rucoder/ops-extension.git"}' \
+  -d '{"org":"build","repo":"ops-extension","git_url":"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/zergx/ops-extension.git"}' \
   "$JJ/api/v1/repos/clone"
 curl -s -X POST -H 'Content-Type: application/json' \
   -d '{"rev":"master","branch":"dev"}' \
@@ -443,15 +443,15 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 # 构建（第 6 节）
 curl -s -X POST -H 'Content-Type: application/json' \
-  -d '{"org":"build","repo":"ops-extension","bookmark":"dev","tag":"rucoder-ops-extension","dockerfile":"Dockerfile","push":true,"no_cache":true}' \
-  http://rucoder-ops-extension.temp.svc.cluster.local/api/v1/images/build
+  -d '{"org":"build","repo":"ops-extension","bookmark":"dev","tag":"zergx-ops-extension","dockerfile":"Dockerfile","push":true,"no_cache":true}' \
+  http://zergx-ops-extension.temp.svc.cluster.local/api/v1/images/build
 # 轮询 build_id 到 done
 
 # 部署（第 7 节）
-kubectl -n temp rollout restart deployment/rucoder-ops-extension
-kubectl -n temp rollout status deployment/rucoder-ops-extension --timeout=180s
+kubectl -n temp rollout restart deployment/zergx-ops-extension
+kubectl -n temp rollout status deployment/zergx-ops-extension --timeout=180s
 
 # 验证（第 8 节）
 curl -s -o /dev/null -w '%{http_code}\n' \
-  http://rucoder-ops-extension.temp.svc.cluster.local/api/v1/health
+  http://zergx-ops-extension.temp.svc.cluster.local/api/v1/health
 ```

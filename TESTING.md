@@ -1,6 +1,6 @@
 # TESTING — 测试策略与质量门禁
 
-rucoder-neo 是一个多服务 Rust 项目（12 业务服务 + core SDK）。本文档定义**每个
+zergx 是一个多服务 Rust 项目（12 业务服务 + core SDK）。本文档定义**每个
 服务如何保证正确性**，以及 CI 的强制门槛。
 
 ## 目录
@@ -78,7 +78,7 @@ make gate
 ### 3.4 依赖外部系统的 business 服务（repo-manager / executor / builder）
 
 - **repo-manager**：真实 `jj`/`git` 三项目式测试（A 建仓库 → B 改文件 → C 读回）。
-  参考 `~/recoder-neo/packages/server/tests/routes/registry/repository.test.ts`。
+  参考 `~/zergx/packages/server/tests/routes/registry/repository.test.ts`。
 - **executor**：真实 k8s 一次性环境（沿用 registry-tests 的「容器实例 + emptyDir」模式）。
 - **builder**：真实 buildkit（一次性实例）。
 
@@ -102,13 +102,13 @@ make gate
 ## 5. 如何新增一个测试
 
 1. **纯函数** → `#[cfg(test)] mod tests` 放源文件底部。
-2. **HTTP 契约** → `tests/http_it.rs`（进程内 oneshot，复用 `rucoder-sdk-test-utils`）。
+2. **HTTP 契约** → `tests/http_it.rs`（进程内 oneshot，复用 `zergx-sdk-test-utils`）。
 3. **NATS 协议 / 下游转发** → `tests/provider_it.rs`（`MockBus` + `MockServer`）。
 4. **真实 E2E** → 独立套件（registry-tests 模式），标 `#[ignore]` 或独立脚本。
 
-共享工具（`core/rucoder-sdk-test-utils`）：
+共享工具（`core/zergx-sdk-test-utils`）：
 - `tempdir()` — 临时目录
-- `MockBus`（`core/rucoder-sdk-bus::mock`）— 内存 NATS
+- `MockBus`（`core/zergx-sdk-bus::mock`）— 内存 NATS
 - `MockServer` — 本地 HTTP 捕获服务器
 
 ---

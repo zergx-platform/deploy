@@ -1,6 +1,0 @@
-apiVersion: v2
-name: rucoder
-description: Rust rewrite of recoder-neo as multi-container helm chart services
-type: application
-version: 0.1.0
-appVersion: "0.1.0"

@@ -2,16 +2,16 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ .Chart.Name }}-ops-extension
+  name: ops-extension
   labels:
-    {{- include "rucoder.labels" (dict "Chart" .Chart "Release" .Release "name" "ops-extension") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" .Chart "Release" .Release "name" "ops-extension") | nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ .Chart.Name }}-ops-extension
+  name: ops-extension
   labels:
-    {{- include "rucoder.labels" (dict "Chart" .Chart "Release" .Release "name" "ops-extension") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" .Chart "Release" .Release "name" "ops-extension") | nindent 4 }}
 rules:
   - apiGroups: [""]
     resources: ["pods"]
@@ -55,15 +55,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ .Chart.Name }}-ops-extension
+  name: ops-extension
   labels:
-    {{- include "rucoder.labels" (dict "Chart" .Chart "Release" .Release "name" "ops-extension") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" .Chart "Release" .Release "name" "ops-extension") | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ .Chart.Name }}-ops-extension
+  name: ops-extension
 subjects:
   - kind: ServiceAccount
-    name: {{ .Chart.Name }}-ops-extension
+    name: ops-extension
     namespace: {{ .Release.Namespace }}
 {{- end }}

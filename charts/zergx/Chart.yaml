@@ -1,0 +1,6 @@
+apiVersion: v2
+name: zergx
+description: zergx — multi-container helm chart (TypeScript / Go / Rust)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

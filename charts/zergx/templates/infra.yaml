@@ -8,13 +8,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $.Chart.Name }}-postgres
+  name: postgres
   labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "postgres") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "postgres") | nindent 4 }}
 spec:
   type: ClusterIP
   selector:
-    app: {{ $.Chart.Name }}-postgres
+    app: postgres
   ports:
     - name: pg
       port: 5432
@@ -23,19 +23,19 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ $.Chart.Name }}-postgres
+  name: postgres
   labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "postgres") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "postgres") | nindent 4 }}
 spec:
-  serviceName: {{ $.Chart.Name }}-postgres
+  serviceName: postgres
   replicas: 1
   selector:
     matchLabels:
-      app: {{ $.Chart.Name }}-postgres
+      app: postgres
   template:
     metadata:
       labels:
-        app: {{ $.Chart.Name }}-postgres
+        app: postgres
     spec:
       containers:
         - name: postgres
@@ -76,14 +76,14 @@ spec:
             type: DirectoryOrCreate
         - name: initdb
           configMap:
-            name: {{ $.Chart.Name }}-postgres-init
+            name: postgres-init
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $.Chart.Name }}-postgres-init
+  name: postgres-init
   labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "postgres-init") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "postgres-init") | nindent 4 }}
 data:
   init.sql: |
     {{- range $db := .Values.infra.postgres.databases }}
@@ -96,13 +96,13 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $.Chart.Name }}-nats
+  name: nats
   labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "nats") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "nats") | nindent 4 }}
 spec:
   type: ClusterIP
   selector:
-    app: {{ $.Chart.Name }}-nats
+    app: nats
   ports:
     - name: client
       port: 4222
@@ -114,19 +114,19 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ $.Chart.Name }}-nats
+  name: nats
   labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "nats") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "nats") | nindent 4 }}
 spec:
-  serviceName: {{ $.Chart.Name }}-nats
+  serviceName: nats
   replicas: 1
   selector:
     matchLabels:
-      app: {{ $.Chart.Name }}-nats
+      app: nats
   template:
     metadata:
       labels:
-        app: {{ $.Chart.Name }}-nats
+        app: nats
     spec:
       containers:
         - name: nats
@@ -159,13 +159,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $.Chart.Name }}-selenium
+  name: selenium
   labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "selenium") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "selenium") | nindent 4 }}
 spec:
   type: ClusterIP
   selector:
-    app: {{ $.Chart.Name }}-selenium
+    app: selenium
   ports:
     - name: http
       port: 4444
@@ -174,18 +174,18 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ $.Chart.Name }}-selenium
+  name: selenium
   labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "selenium") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "selenium") | nindent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ $.Chart.Name }}-selenium
+      app: selenium
   template:
     metadata:
       labels:
-        app: {{ $.Chart.Name }}-selenium
+        app: selenium
     spec:
       containers:
         - name: selenium
@@ -219,13 +219,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $.Chart.Name }}-buildkitd
+  name: buildkitd
   labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd") | nindent 4 }}
 spec:
   type: ClusterIP
   selector:
-    app: {{ $.Chart.Name }}-buildkitd
+    app: buildkitd
   ports:
     - name: grpc
       port: 1234
@@ -234,19 +234,19 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ $.Chart.Name }}-buildkitd
+  name: buildkitd
   labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd") | nindent 4 }}
 spec:
-  serviceName: {{ $.Chart.Name }}-buildkitd
+  serviceName: buildkitd
   replicas: 1
   selector:
     matchLabels:
-      app: {{ $.Chart.Name }}-buildkitd
+      app: buildkitd
   template:
     metadata:
       labels:
-        app: {{ $.Chart.Name }}-buildkitd
+        app: buildkitd
     spec:
       securityContext:
         fsGroup: 1000
@@ -308,7 +308,7 @@ spec:
       volumes:
         - name: buildkit-config
           configMap:
-            name: {{ $.Chart.Name }}-buildkitd-config
+            name: buildkitd-config
         # Layer cache + content store live on the node (not the ephemeral
         # container fs), so builds are incremental across pod restarts and
         # chart upgrades. Single-node hostPath, same pattern as the other
@@ -321,22 +321,22 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $.Chart.Name }}-buildkitd-config
+  name: buildkitd-config
   labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd-config") | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd-config") | nindent 4 }}
 data:
   buildkitd.toml: |
     # Pull docker.io images through the artifact OCI pull-through mirror over
     # plain HTTP on the in-cluster service host — no TLS/egress to docker.io
     # needed from buildkitd itself.
     [registry."docker.io"]
-      mirrors = ["{{ include "rucoder.fullname" (dict "Chart" $.Chart "Release" $.Release "name" "artifact") }}.{{ $.Release.Namespace }}.svc.cluster.local:80"]
+      mirrors = ["{{ include "zergx.fullname" (dict "Chart" $.Chart "Release" $.Release "name" "artifact") }}.{{ $.Release.Namespace }}.svc.cluster.local:80"]
 
-    [registry."{{ include "rucoder.fullname" (dict "Chart" $.Chart "Release" $.Release "name" "artifact") }}.{{ $.Release.Namespace }}.svc.cluster.local:80"]
+    [registry."{{ include "zergx.fullname" (dict "Chart" $.Chart "Release" $.Release "name" "artifact") }}.{{ $.Release.Namespace }}.svc.cluster.local:80"]
       http = true
       insecure = true
 
     [registry."{{ $.Values.global.imageRegistry }}"]
-      http = false
+      http = true
       insecure = true
 {{- end }}

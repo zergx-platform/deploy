@@ -10,11 +10,11 @@ imagePullPolicy: Always
 # Host path on the single cluster node where infra data lives. Must exist (or
 # be creatable) on the node. Each infra service stores under
 # <hostPathRoot>/<service-name>.
-hostPathRoot: /home/develop/Data
+hostPathRoot: /home/develop/ZergX
 
 # Internal service hostnames. When infra.<x>.enabled is true, the chart deploys
 # the dependency inside this release and these hosts point at the in-chart
-# Service (rucoder-<x>). Set enabled=false to reuse external services.
+# Service (named by the services key, no prefix). Set enabled=false to reuse external services.
 infra:
   postgres:
     enabled: true
@@ -23,9 +23,9 @@ infra:
     user: root
     password: devpassword
     databases:
-      agent: rucoder_agent
-      platform: rucoder_platform
-      repoext: rucoder_repoext
+      agent: zergx_agent
+      platform: zergx_platform
+      repoext: zergx_repoext
   nats:
     enabled: true
     image: rucoder-artifact.temp.10.199.64.20.nip.io/nats:2.14.5-alpine
@@ -56,9 +56,9 @@ postgres:
   user: root
   password: devpassword
   databases:
-    agent: rucoder_agent
-    platform: rucoder_platform
-    repoext: rucoder_repoext
+    agent: zergx_agent
+    platform: zergx_platform
+    repoext: zergx_repoext
 
 repoExtension:
   # Reconciler cadence (seconds): finish pending sagas, converge drift.
@@ -71,8 +71,8 @@ llm:
   model: deepseek-v4-pro
 
 k8s:
-  namespace: temp
-  workerImage: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-worker:v0.0.1
+  namespace: zergx
+  workerImage: rucoder-artifact.temp.10.199.64.20.nip.io/zergx-worker:v0.0.1
 
 resources:
   requests:
@@ -127,7 +127,7 @@ services:
     port: 80
     containerPort: 8080
     # Go aggregate API + streaming reverse proxy + embedded SPA.
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-gateway-go:v0.0.1
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/zergx-ui:v0.0.1
   artifact:
     enabled: true
     port: 80
@@ -149,38 +149,38 @@ services:
     port: 80
     containerPort: 8080
     # Rust jj-lib native server (single static binary, no external git/jj).
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-repo:v0.0.3
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/zergx-repo:v0.0.3
   repo-extension:
     enabled: true
     port: 80
     containerPort: 8080
     # Go NATS tool layer forwarding agent file/git tools to jj-server.
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-repo-extension:v0.0.3
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/zergx-repo-extension:v0.0.3
   ops-extension:
     enabled: true
     port: 80
     containerPort: 8080
     # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-ops-extension:v0.0.2
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/zergx-ops-extension:v0.0.2
   wdbidi-extension:
     enabled: true
     port: 80
     containerPort: 8080
     # Browser tools over WebDriver BiDi (selenium standalone).
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-wdbidi-extension:v0.0.1
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/zergx-wdbidi-extension:v0.0.1
   agent:
     enabled: true
     port: 80
     containerPort: 8080
     # The agent is the TypeScript implementation (Vercel AI SDK); the Rust
     # agent has been removed.
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-agent-ts:v0.0.1
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/zergx-agent:v0.0.1
   memory-tools:
     enabled: true
     port: 80
     containerPort: 8080
     # Go memory-extension (replaces the Rust memory-tools service).
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-memory-extension:v0.0.1
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/zergx-memory-extension:v0.0.1
 
 persistence:
   repos:
@@ -191,14 +191,14 @@ builder:
   registry: rucoder-artifact.temp.10.199.64.20.nip.io
 
 repoManager:
-  reposRoot: /home/user/.recoder/repos
+  reposRoot: /home/user/.zergx/repos
 
 registryToken: ""
-registryAdminToken: "rxt_dev_admin"
+registryAdminToken: "zergx_dev_admin"
 
 pullSecret:
   enabled: false
-  name: rucoder-pull
+  name: zergx-pull
   dockerconfigjson: ""
 
 

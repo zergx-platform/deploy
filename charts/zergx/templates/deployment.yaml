@@ -4,9 +4,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "rucoder.fullname" (dict "Chart" $.Chart "Release" $.Release "name" $name) }}
+  name: {{ include "zergx.fullname" (dict "Chart" $.Chart "Release" $.Release "name" $name) }}
   labels:
-    {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 4 }}
+    {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 4 }}
 spec:
   replicas: 1
   {{- if eq $name "artifact" }}
@@ -22,14 +22,14 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 6 }}
+      {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "rucoder.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 8 }}
+        {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 8 }}
     spec:
       {{- if eq $name "ops-extension" }}
-      serviceAccountName: {{ $.Chart.Name }}-ops-extension
+      serviceAccountName: ops-extension
       {{- end }}
       containers:
         - name: {{ $name }}
@@ -52,7 +52,7 @@ spec:
           args:
             - "-addr=0.0.0.0:{{ $svc.containerPort | default 8080 }}"
             - "-root=/data"
-            - "-self-base=http://{{ include "rucoder.fullname" (dict "Chart" $.Chart "Release" $.Release "name" $name) }}.{{ $.Release.Namespace }}.svc.cluster.local"
+            - "-self-base=http://{{ include "zergx.fullname" (dict "Chart" $.Chart "Release" $.Release "name" $name) }}.{{ $.Release.Namespace }}.svc.cluster.local"
             - "-upstream=https://registry-1.docker.io"
             - "-config=/config.yaml"
           {{- end }}
@@ -61,7 +61,7 @@ spec:
               containerPort: {{ $svc.containerPort | default 8080 }}
           envFrom:
             - secretRef:
-                name: {{ $.Chart.Name }}-external
+                name: zergx-external
           {{- if eq $name "repo" }}
           env:
             - name: HTTP_PROXY
@@ -74,7 +74,7 @@ spec:
           {{- if eq $name "repo" }}
           volumeMounts:
             - name: repos
-              mountPath: /home/user/.recoder/repos
+              mountPath: /home/user/.zergx/repos
             - name: repo-manager-data
               mountPath: /data
           {{- end }}
@@ -124,18 +124,18 @@ spec:
       volumes:
         - name: repos
           hostPath:
-            path: {{ $.Values.hostPathRoot }}/rucoder-repos
+            path: {{ $.Values.hostPathRoot }}/zergx-repos
             type: DirectoryOrCreate
         - name: repo-manager-data
           hostPath:
-            path: {{ $.Values.hostPathRoot }}/rucoder-repo-manager
+            path: {{ $.Values.hostPathRoot }}/zergx-repo-manager
             type: DirectoryOrCreate
       {{- end }}
       {{- if eq $name "artifact" }}
       volumes:
         - name: artifact-data
           hostPath:
-            path: {{ $.Values.hostPathRoot }}/rucoder-artifact
+            path: {{ $.Values.hostPathRoot }}/zergx-artifact
             type: DirectoryOrCreate
         - name: tmp
           emptyDir: {}

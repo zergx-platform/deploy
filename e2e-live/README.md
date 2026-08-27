@@ -8,10 +8,10 @@
 
 - 服务已部署到 temp 集群且健康（`/api/v1/health` = 200）
 - 本机可直连集群 svc DNS：
-  - `rucoder-nats.temp.svc.cluster.local:4222`
-  - `rucoder-repo.temp.svc.cluster.local`（jj-server）
-  - `rucoder-postgres.temp.svc.cluster.local:5432`
-  - `rucoder-ops-extension.temp.svc.cluster.local`
+  - `zergx-nats.temp.svc.cluster.local:4222`
+  - `zergx-repo.temp.svc.cluster.local`（jj-server）
+  - `zergx-postgres.temp.svc.cluster.local:5432`
+  - `zergx-ops-extension.temp.svc.cluster.local`
 - Go 1.26，artifact GOPROXY 可用
 - ops 段需要一个已就绪的 workspace sandbox：session 名 `test:dbg1:main`
   （对应 jj 仓库 `test/dbg1` 的 `main` bookmark；确保 `ensureSandbox` 已拉起
@@ -21,7 +21,7 @@
 
 ```bash
 cd e2e-live
-GOPROXY=http://rucoder-artifact.temp.svc.cluster.local:80/pkgs/go \
+GOPROXY=http://zergx-artifact.temp.svc.cluster.local:80/pkgs/go \
 GOSUMDB=off go run .
 ```
 

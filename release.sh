@@ -1,39 +1,39 @@
 #!/usr/bin/env bash
-# Versioned release tooling for rucoder services.
+# Versioned release tooling for zergx services.
 #
 # Usage: ./release.sh <bump> <service...>
 #          bump    = the version bump kind: major | minor | patch
 #          service = one or more service names (see SERVICES below) or "all"
 #
 # What it does, per service:
-#   1. bumps the service's version in charts/rucoder/values.yaml (vX.Y.Z)
+#   1. bumps the service's version in charts/zergx/values.yaml (vX.Y.Z)
 #   2. syncs the source repo's dev bookmark from forgejo (via jj-server)
 #   3. builds & pushes {image}:{version} through ops-extension /images/build
 #      using image_tag (source stays on dev, image tag is the release)
 #   4. keeps the previous image tag as a fallback record
 #
 # After running it, verify the chart and roll out:
-#   helm -n temp upgrade rucoder charts/rucoder
+#   helm -n zergx upgrade zergx charts/zergx
 #   kubectl -n temp rollout status deployment/<dep> --timeout=180s
 #
 # The previous versions are kept in the registry so helm upgrades can be
 # rolled back (helm rollback + re-pointing the image tag to the older one).
 set -euo pipefail
 
-JJSERVER="${JJSERVER:-http://rucoder-repo.temp.svc.cluster.local}"
-OPS="${OPS:-http://rucoder-ops-extension.temp.svc.cluster.local}"
-CHART_VALUES="$(cd "$(dirname "$0")" && pwd)/charts/rucoder/values.yaml"
-NAMESPACE="${NAMESPACE:-temp}"
+JJSERVER="${JJSERVER:-http://repo.zergx.svc.cluster.local}"
+OPS="${OPS:-http://ops-extension.zergx.svc.cluster.local}"
+CHART_VALUES="$(cd "$(dirname "$0")" && pwd)/charts/zergx/values.yaml"
+NAMESPACE="${NAMESPACE:-zergx}"
 
 # service -> (chart key, jj repo, source image name, k8s deployment)
 declare -A SERVICES=(
-  [gateway]="gateway|gateway-go|rucoder-gateway-go|rucoder-gateway"
-  [repo]="repo|jj-server|rucoder-repo|rucoder-repo"
-  [repo-extension]="repo-extension|repo-extension|rucoder-repo-extension|rucoder-repo-extension"
-  [ops-extension]="ops-extension|ops-extension|rucoder-ops-extension|rucoder-ops-extension"
-  [wdbidi-extension]="wdbidi-extension|wdbidi-extension|rucoder-wdbidi-extension|rucoder-wdbidi-extension"
-  [agent]="agent|agent-ts|rucoder-agent-ts|rucoder-agent"
-  [memory]="memory-tools|memory-extension|rucoder-memory-extension|rucoder-memory-tools"
+  [gateway]="gateway|zergx-ui|zergx-ui|gateway"
+  [repo]="repo|jj-server|zergx-repo|zergx-repo"
+  [repo-extension]="repo-extension|repo-extension|zergx-repo-extension|zergx-repo-extension"
+  [ops-extension]="ops-extension|ops-extension|zergx-ops-extension|zergx-ops-extension"
+  [wdbidi-extension]="wdbidi-extension|wdbidi-extension|zergx-wdbidi-extension|zergx-wdbidi-extension"
+  [agent]="agent|zergx-agent|zergx-agent|agent"
+  [memory]="memory-tools|memory-extension|zergx-memory-extension|zergx-memory-tools"
 )
 
 bump="${1:?usage: release.sh <major|minor|patch> <service...|all>}"
@@ -49,7 +49,7 @@ for s in "${sel[@]}"; do
 done
 
 # ---- version helpers ----
-current_version() { grep -Eo "rucoder[-a-z]+:v[0-9.]+" "$CHART_VALUES" | grep "^$1:" | cut -d: -f2; }
+current_version() { grep -Eo "zergx[-a-z]+:v[0-9.]+" "$CHART_VALUES" | grep "^$1:" | cut -d: -f2; }
 bump_version() { # vX.Y.Z kind -> vX'.Y'.Z'
   local v="$1" k="$2" M m p
   M="${v#v}"
@@ -100,7 +100,7 @@ PY
   #    repo, which `curl -f` would turn into a silent no-op (the prior bug).
   curl -sf -X DELETE "$JJSERVER/api/v1/repos/build/$repo" >/dev/null 2>&1 || true
   curl -sf -X POST -H 'Content-Type: application/json' \
-    -d "{\"org\":\"build\",\"repo\":\"$repo\",\"git_url\":\"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/rucoder/$repo.git\"}" \
+    -d "{\"org\":\"build\",\"repo\":\"$repo\",\"git_url\":\"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/zergx/$repo.git\"}" \
     "$JJSERVER/api/v1/repos/clone" >/dev/null
   curl -sf -X POST -H 'Content-Type: application/json' \
     -d '{"rev":"master","branch":"dev"}' \
@@ -124,7 +124,7 @@ done
 
 echo
 echo "Done. Roll out with:"
-echo "  helm -n $NAMESPACE upgrade rucoder charts/rucoder"
+echo "  helm -n $NAMESPACE upgrade zergx charts/zergx"
 for s in "${sel[@]}"; do
   IFS='|' read -r _ _ _ deployment <<< "${SERVICES[$s]}"
   echo "  kubectl -n $NAMESPACE rollout status deployment/$deployment --timeout=180s"

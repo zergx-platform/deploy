@@ -23,9 +23,9 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-const natsURL = "nats://rucoder-nats.temp.svc.cluster.local:4222"
-const pgDSN = "postgres://root:devpassword@rucoder-postgres.temp.svc.cluster.local:5432/rucoder_agent"
-const jjBase = "http://rucoder-repo.temp.svc.cluster.local/api/v1"
+const natsURL = "nats://nats.zergx.svc.cluster.local:4222"
+const pgDSN = "postgres://root:devpassword@postgres.zergx.svc.cluster.local:5432/zergx_agent"
+const jjBase = "http://repo.zergx.svc.cluster.local/api/v1"
 
 var passed, failed int
 
@@ -270,10 +270,10 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	check("ops.list-registry-packages", err == nil && strings.Contains(r.Content, "abep.dev/sdk"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 
 	r, err = call(sid, "ops", "image-list", map[string]interface{}{})
-	check("ops.image-list", err == nil && strings.Contains(r.Content, "rucoder-agent-ts"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.image-list", err == nil && strings.Contains(r.Content, "zergx-agent-ts"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 
 	r, err = call(sid, "ops", "helm-list", map[string]interface{}{})
-	check("ops.helm-list", err == nil && strings.Contains(r.Content, "rucoder"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.helm-list", err == nil && strings.Contains(r.Content, "zergx"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 
 	// ---- heavy tools: container-build/deploy + helm lifecycle ----
 	// Unique per-run names so reruns never collide; cleaned up at the end.
