@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# Versioned release tooling for rucoder services.
+#
+# Usage: ./release.sh <bump> <service...>
+#          bump    = the version bump kind: major | minor | patch
+#          service = one or more service names (see SERVICES below) or "all"
+#
+# What it does, per service:
+#   1. bumps the service's version in charts/rucoder/values.yaml (vX.Y.Z)
+#   2. syncs the source repo's dev bookmark from forgejo (via jj-server)
+#   3. builds & pushes {image}:{version} through ops-extension /images/build
+#      using image_tag (source stays on dev, image tag is the release)
+#   4. keeps the previous image tag as a fallback record
+#
+# After running it, verify the chart and roll out:
+#   helm -n temp upgrade rucoder charts/rucoder
+#   kubectl -n temp rollout status deployment/<dep> --timeout=180s
+#
+# The previous versions are kept in the registry so helm upgrades can be
+# rolled back (helm rollback + re-pointing the image tag to the older one).
+set -euo pipefail
+
+JJSERVER="${JJSERVER:-http://rucoder-repo.temp.svc.cluster.local}"
+OPS="${OPS:-http://rucoder-ops-extension.temp.svc.cluster.local}"
+CHART_VALUES="$(cd "$(dirname "$0")" && pwd)/charts/rucoder/values.yaml"
+NAMESPACE="${NAMESPACE:-temp}"
+
+# service -> (chart key, jj repo, source image name, k8s deployment)
+declare -A SERVICES=(
+  [gateway]="gateway|gateway-go|rucoder-gateway-go|rucoder-gateway"
+  [repo]="repo|jj-server|rucoder-repo|rucoder-repo"
+  [repo-extension]="repo-extension|repo-extension|rucoder-repo-extension|rucoder-repo-extension"
+  [ops-extension]="ops-extension|ops-extension|rucoder-ops-extension|rucoder-ops-extension"
+  [wdbidi-extension]="wdbidi-extension|wdbidi-extension|rucoder-wdbidi-extension|rucoder-wdbidi-extension"
+  [agent]="agent|agent-ts|rucoder-agent-ts|rucoder-agent"
+  [memory]="memory-tools|memory-extension|rucoder-memory-extension|rucoder-memory-tools"
+)
+
+bump="${1:?usage: release.sh <major|minor|patch> <service...|all>}"
+shift
+case "$bump" in major|minor|patch) ;; *) echo "bad bump kind: $bump" >&2; exit 2;; esac
+
+sel=("$@")
+if [[ "${sel[*]}" == "all" ]]; then
+  sel=("${!SERVICES[@]}")
+fi
+for s in "${sel[@]}"; do
+  [[ -n "${SERVICES[$s]:-}" ]] || { echo "unknown service: $s" >&2; exit 2; }
+done
+
+# ---- version helpers ----
+current_version() { grep -Eo "rucoder[-a-z]+:v[0-9.]+" "$CHART_VALUES" | grep "^$1:" | cut -d: -f2; }
+bump_version() { # vX.Y.Z kind -> vX'.Y'.Z'
+  local v="$1" k="$2" M m p
+  M="${v#v}"; m="${M#*.}"; p="${M##*.}"; M="${M%%.*}"
+  case "$k" in
+    major) M=$((M+1)); m=0; p=0;;
+    minor) m=$((m+1)); p=0;;
+    patch) p=$((p+1));;
+  esac
+  echo "v$M.$m.$p"
+}
+
+for s in "${sel[@]}"; do
+  IFS='|' read -r key repo image deployment <<< "${SERVICES[$s]}"
+
+  old="$(grep -E "image: .*${image}:" "$CHART_VALUES" | grep -oE "${image}:v[0-9.]+" | head -1)"
+  if [[ -z "$old" ]]; then
+    version="v0.0.1"
+    oldtag="dev"
+  else
+    oldv="${old##*:}"
+    version="$(bump_version "$oldv" "$bump")"
+  fi
+
+  echo "==> $s: ${old:-none} -> ${version}"
+
+  # 1. bump chart (keep the previous version in a comment for easy rollback)
+  python3 - "$CHART_VALUES" "$key" "$image" "$oldv" "$version" <<'PY'
+import re, sys
+path, key, image, oldv, version = sys.argv[1:6]
+s = open(path).read()
+newline = f"    image: rucoder-artifact.temp.10.199.64.20.nip.io/{image}:{version}"
+endpoint = f"    image: rucoder-artifact.temp.10.199.64.20.nip.io/{image}:v{oldv}" if oldv else None
+if endpoint and endpoint in s:
+    s = s.replace(endpoint, newline, 1)
+else:
+    # fall back to any :vX.Y.Z / :dev tag for this image
+    pat = re.compile(rf"(    image: rucoder-artifact\.temp\.10\.199\.64\.20\.nip\.io/{re.escape(image)}:)(?:v[0-9.]+|dev)")
+    s, n = pat.subn(lambda m: m.group(1) + version, s, count=1)
+    if n == 0:
+        sys.exit(f"image line not found for {image}")
+open(path, 'w').write(s)
+PY
+
+  # 2. sync the forgejo repo into jj-server's build org (idempotent clone) and
+  #    move the dev bookmark to the release rev of today's master branch.
+  curl -sf -X POST -H 'Content-Type: application/json' \
+    -d "{\"org\":\"build\",\"repo\":\"$repo\",\"git_url\":\"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/rucoder/$repo.git\"}" \
+    "$JJSERVER/api/v1/repos/clone" >/dev/null || true
+  curl -sf -X POST -H 'Content-Type: application/json' \
+    -d '{"rev":"master","branch":"dev"}' \
+    "$JJSERVER/api/v1/repos/build/$repo/bookmarks" >/dev/null || true
+
+  # 3. build + push {image}:{version}
+  bid="$(curl -sf -X POST -H 'Content-Type: application/json' \
+    -d "{\"org\":\"build\",\"repo\":\"$repo\",\"bookmark\":\"dev\",\"tag\":\"$image\",\"image_tag\":\"$version\",\"dockerfile\":\"Dockerfile\",\"push\":true}" \
+    "$OPS/api/v1/images/build" | python3 -c 'import json,sys; print(json.load(sys.stdin)["build_id"])')"
+
+  echo "    build_id=$bid — waiting…"
+  for _ in $(seq 1 120); do
+    st="$(curl -s --max-time 10 "$OPS/api/v1/builds/$bid" | python3 -c 'import json,sys; print(json.load(sys.stdin)["build"]["state"])' 2>/dev/null || true)"
+    case "$st" in
+      done)  echo "    ✓ $image:$version built & pushed"; break;;
+      failed) echo "    ✗ build failed:"; curl -s "$OPS/api/v1/builds/$bid" | python3 -c 'import json,sys; print(json.load(sys.stdin)["build"].get("error",""))' >&2; exit 1;;
+    esac
+    sleep 10
+  done
+done
+
+echo
+echo "Done. Roll out with:"
+echo "  helm -n $NAMESPACE upgrade rucoder charts/rucoder"
+for s in "${sel[@]}"; do
+  IFS='|' read -r _ _ _ deployment <<< "${SERVICES[$s]}"
+  echo "  kubectl -n $NAMESPACE rollout status deployment/$deployment --timeout=180s"
+done
