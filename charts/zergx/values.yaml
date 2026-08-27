@@ -75,7 +75,7 @@ k8s:
   # deployments. The platform services themselves live in the release
   # namespace (zergx); runtime workloads are isolated in zergxd.
   runtimeNamespace: zergxd
-  workerImage: artifact.zergx.svc.cluster.local/zergx-worker:v0.0.2
+  workerImage: artifact.zergx.svc.cluster.local/zergx-worker:v0.0.3
 
 resources:
   requests:
@@ -164,7 +164,7 @@ services:
     port: 80
     containerPort: 8080
     # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
-    image: artifact.zergx.svc.cluster.local/zergx-ops-extension:v0.0.1
+    image: artifact.zergx.svc.cluster.local/zergx-ops-extension:v0.0.2
   wdbidi-extension:
     enabled: true
     port: 80
