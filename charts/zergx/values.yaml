@@ -130,7 +130,7 @@ services:
     port: 80
     containerPort: 8080
     # Go aggregate API + streaming reverse proxy + embedded SPA.
-    image: artifact.zergx.svc.cluster.local/zergx-ui:v0.0.4
+    image: artifact.zergx.svc.cluster.local/zergx-ui:v0.0.7
   artifact:
     enabled: true
     port: 80
@@ -164,7 +164,7 @@ services:
     port: 80
     containerPort: 8080
     # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
-    image: artifact.zergx.svc.cluster.local/zergx-ops-extension:v0.0.2
+    image: artifact.zergx.svc.cluster.local/zergx-ops-extension:v0.0.3
   wdbidi-extension:
     enabled: true
     port: 80

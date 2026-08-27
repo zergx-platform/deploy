@@ -26,6 +26,7 @@ import (
 const natsURL = "nats://nats.zergx.svc.cluster.local:4222"
 const pgDSN = "postgres://root:devpassword@postgres.zergx.svc.cluster.local:5432/zergx_agent"
 const jjBase = "http://repo.zergx.svc.cluster.local/api/v1"
+const opsBase = "http://ops-extension.zergx.svc.cluster.local/api/v1"
 
 var passed, failed int
 
@@ -319,9 +320,11 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	})
 	check("ops.container-build", err == nil && strings.Contains(r.Content, "Finished build"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 
-	// container-deploy: image tag is {tag}:{bookmark} = e2e-ops-img:main.
+	// container-deploy: image must be the fully-qualified reference
+	// ({registry}/{tag}:{bookmark}) so the deployment's pods can pull it.
+	fullImage := "artifact.zergx.svc.cluster.local/" + imgTag + ":main"
 	r, err = call(sid, "ops", "container-deploy", map[string]interface{}{
-		"image": imgTag + ":main", "name": runTag,
+		"image": fullImage, "name": runTag,
 	})
 	check("ops.container-deploy", err == nil && strings.Contains(r.Content, "Deployed"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 
@@ -348,5 +351,13 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	r, err = call(sid, "ops", "helm-uninstall", map[string]interface{}{"release_name": releaseName})
 	check("ops.helm-uninstall", err == nil && strings.Contains(r.Content, "Uninstalled"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 
-	_ = runTag
+	// cleanup: remove the deployed e2e deployment + service so reruns don't
+	// leave ImagePullBackOff corpses in zergxd.
+	cleanupDeploy := func(name string) {
+		req, _ := httpNew("DELETE", opsBase+"/deployments/"+name, "")
+		if resp, err := httpDo(req); err == nil && resp != nil {
+			resp.Body.Close()
+		}
+	}
+	cleanupDeploy(runTag)
 }
