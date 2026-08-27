@@ -75,7 +75,7 @@ k8s:
   # deployments. The platform services themselves live in the release
   # namespace (zergx); runtime workloads are isolated in zergxd.
   runtimeNamespace: zergxd
-  workerImage: artifact.zergx.svc.cluster.local/zergx-worker:v0.0.3
+  workerImage: artifact.zergx.svc.cluster.local/zergx-worker:v0.0.4
 
 resources:
   requests:
