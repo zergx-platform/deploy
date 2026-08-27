@@ -34,6 +34,7 @@ declare -A SERVICES=(
   [wdbidi-extension]="wdbidi-extension|wdbidi-extension|zergx-wdbidi-extension|zergx-wdbidi-extension"
   [agent]="agent|zergx-agent|zergx-agent|agent"
   [memory]="memory-tools|memory-extension|zergx-memory-extension|zergx-memory-tools"
+  [worker]="worker|zergx-worker|zergx-worker|worker"
 )
 
 bump="${1:?usage: release.sh <major|minor|patch> <service...|all>}"
