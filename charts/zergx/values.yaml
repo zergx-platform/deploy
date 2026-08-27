@@ -152,7 +152,7 @@ services:
     port: 80
     containerPort: 8080
     # Rust jj-lib native server (single static binary, no external git/jj).
-    image: artifact.zergx.svc.cluster.local/zergx-repo:v0.0.2
+    image: artifact.zergx.svc.cluster.local/zergx-repo:v0.0.3
   repo-extension:
     enabled: true
     port: 80
