@@ -161,7 +161,7 @@ services:
     port: 80
     containerPort: 8080
     # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-ops-extension:v0.0.1
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-ops-extension:v0.0.2
   wdbidi-extension:
     enabled: true
     port: 80
