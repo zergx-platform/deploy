@@ -52,13 +52,13 @@ done
 current_version() { grep -Eo "rucoder[-a-z]+:v[0-9.]+" "$CHART_VALUES" | grep "^$1:" | cut -d: -f2; }
 bump_version() { # vX.Y.Z kind -> vX'.Y'.Z'
   local v="$1" k="$2" M m p
-  M="${v#v}"; m="${M#*.}"; p="${M##*.}"; M="${M%%.*}"
+  M="${v#v}"
   case "$k" in
-    major) M=$((M+1)); m=0; p=0;;
-    minor) m=$((m+1)); p=0;;
-    patch) p=$((p+1));;
+    major) M="$(( ${M%%.*} + 1 )).0.0";;
+    minor) m="${M#*.}"; M="$(( ${M%%.*} )).$(( ${m%%.*} + 1 )).0";;
+    patch) m="${M#*.}"; p="${M##*.}"; M="${M%%.*}.${m%%.*}.$(( p + 1 ))";;
   esac
-  echo "v$M.$m.$p"
+  echo "v$M"
 }
 
 for s in "${sel[@]}"; do
