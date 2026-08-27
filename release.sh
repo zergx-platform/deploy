@@ -93,14 +93,18 @@ else:
 open(path, 'w').write(s)
 PY
 
-  # 2. sync the forgejo repo into jj-server's build org (idempotent clone) and
-  #    move the dev bookmark to the release rev of today's master branch.
+  # 2. Force-refresh the build org's copy of the forgejo repo: DELETE the
+  #    existing repo (idempotent) then clone, so the version bump ALWAYS builds
+  #    today's master — a stale cached clone must never ship a bumped version
+  #    carrying old code. jj-server's clone returns 409 CONFLICT for an existing
+  #    repo, which `curl -f` would turn into a silent no-op (the prior bug).
+  curl -sf -X DELETE "$JJSERVER/api/v1/repos/build/$repo" >/dev/null 2>&1 || true
   curl -sf -X POST -H 'Content-Type: application/json' \
     -d "{\"org\":\"build\",\"repo\":\"$repo\",\"git_url\":\"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/rucoder/$repo.git\"}" \
-    "$JJSERVER/api/v1/repos/clone" >/dev/null || true
+    "$JJSERVER/api/v1/repos/clone" >/dev/null
   curl -sf -X POST -H 'Content-Type: application/json' \
     -d '{"rev":"master","branch":"dev"}' \
-    "$JJSERVER/api/v1/repos/build/$repo/bookmarks" >/dev/null || true
+    "$JJSERVER/api/v1/repos/build/$repo/bookmarks" >/dev/null
 
   # 3. build + push {image}:{version}
   bid="$(curl -sf -X POST -H 'Content-Type: application/json' \
