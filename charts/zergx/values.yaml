@@ -125,7 +125,7 @@ buildkitdResources:
     memory: 128Gi
 
 services:
-  gateway:
+  ui:
     enabled: true
     port: 80
     containerPort: 8080

@@ -27,7 +27,7 @@ NAMESPACE="${NAMESPACE:-zergx}"
 
 # service -> (chart key, jj repo, source image name, k8s deployment)
 declare -A SERVICES=(
-  [gateway]="gateway|zergx-ui|zergx-ui|gateway"
+  [ui]="ui|zergx-ui|zergx-ui|ui"
   [repo]="repo|jj-server|zergx-repo|zergx-repo"
   [repo-extension]="repo-extension|repo-extension|zergx-repo-extension|zergx-repo-extension"
   [ops-extension]="ops-extension|ops-extension|zergx-ops-extension|zergx-ops-extension"
