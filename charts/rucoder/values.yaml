@@ -149,13 +149,13 @@ services:
     port: 80
     containerPort: 8080
     # Rust jj-lib native server (single static binary, no external git/jj).
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-repo:v0.0.2
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-repo:v0.0.3
   repo-extension:
     enabled: true
     port: 80
     containerPort: 8080
     # Go NATS tool layer forwarding agent file/git tools to jj-server.
-    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-repo-extension:v0.0.2
+    image: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-repo-extension:v0.0.3
   ops-extension:
     enabled: true
     port: 80
