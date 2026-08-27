@@ -10,15 +10,15 @@
 
 | 服务 | 源码目录 | 语言 | 镜像名（`rucoder-artifact.temp.10.199.64.20.nip.io/...`） | 角色 |
 |---|---|---|---|---|
-| agent | `agent-ts/` | TypeScript（Vercel AI SDK） | `rucoder-agent-ts:dev` | 中枢 agent |
+| agent | `agent-ts/` | TypeScript（Vercel AI SDK） | `rucoder-agent-ts:v0.0.1` | 中枢 agent |
 | artifact | `artifact/` | Go | `go-registry@<sha256>`（**digest 固定**） | 包/O CI registry（自托管） |
-| jj-server | `jj-server/` | Rust | `rucoder-repo:dev` | 仓库/jj 后端 |
-| repo-extension | `repo-extension/` | Go | `rucoder-repo-extension:dev` | 文件/git 工具层 |
-| memory-extension | `memory-extension/` | Go | `rucoder-memory-extension:dev` | 会话记忆 |
-| ops-extension | `ops-extension/` | Go（内嵌 Svelte SPA） | `rucoder-ops-extension:dev` | 构建/发布/沙箱工具层 |
-| wdbidi-extension | `wdbidi-extension/` | Go | `rucoder-wdbidi-extension:dev` | 浏览器工具（WebDriver BiDi） |
-| worker-go | `worker-go/` | Go | `rucoder-worker:dev` | 沙箱 worker（session 内 pod） |
-| gateway-go | `gateway-go/` | Go（内嵌 SPA） | `rucoder-gateway-go:dev` | 聚合网关 |
+| jj-server | `jj-server/` | Rust | `rucoder-repo:v0.0.1` | 仓库/jj 后端 |
+| repo-extension | `repo-extension/` | Go | `rucoder-repo-extension:v0.0.1` | 文件/git 工具层 |
+| memory-extension | `memory-extension/` | Go | `rucoder-memory-extension:v0.0.1` | 会话记忆 |
+| ops-extension | `ops-extension/` | Go（内嵌 Svelte SPA） | `rucoder-ops-extension:v0.0.1` | 构建/发布/沙箱工具层 |
+| wdbidi-extension | `wdbidi-extension/` | Go | `rucoder-wdbidi-extension:v0.0.1` | 浏览器工具（WebDriver BiDi） |
+| worker-go | `worker-go/` | Go | `rucoder-worker:v0.0.1` | 沙箱 worker（session 内 pod） |
+| gateway-go | `gateway-go/` | Go（内嵌 SPA） | `rucoder-gateway-go:v0.0.1` | 聚合网关 |
 | abep-sdk-go | `abep-sdk-go/` | Go module | `abep.dev/sdk@v0.x.y` | Go 扩展 SDK |
 | abep-sdk-ts | `abep-sdk-ts/` | TypeScript | `abep-sdk@0.x.y` | TS 扩展 SDK |
 
@@ -249,7 +249,8 @@ curl -s -X POST -H 'Content-Type: application/json' \
 ```
 
 > **关键**：
-> - 镜像 tag 后缀 = **bookmark 名**。构建用 `dev` → 镜像 tag `:dev`。
+> - 镜像 tag 由 `image_tag` 字段显式指定（版本化发版，`v0.0.x`）；`bookmark` 只决定源码版本（`dev` 始终跟踪 master）。
+>   发版走 `release.sh <major|minor|patch> <service...>`，自动 bump 版本 + 构建推送 `{image}:{version}`。
 > - clone 后 jj 只保留 forgejo 默认分支（`master`），所以必须再 `POST /repos/{org}/{repo}/bookmarks` 建 `dev`。
 > - `git_url` 不带 `root:devpassword@` 会 clone 失败（Gitea 自签证书 + 无凭据）。
 
@@ -361,7 +362,9 @@ kubectl -n temp delete deployment rucoder-artifact
 helm -n temp upgrade rucoder charts/rucoder
 ```
 
-### 滚动重启（让 :dev + Always 的服务拉新镜像）
+### 版本化发版 + 滚动升级
+
+镜像固定语义化版本（`v0.0.x`），不再用浮动 `:dev`。升级某服务：
 
 ```bash
 for d in rucoder-agent rucoder-worker rucoder-repo rucoder-repo-extension \
@@ -414,7 +417,7 @@ curl -s -I -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
 | npm 覆盖旧版本 | `cannot publish over previously published` | bump 版本号 |
 | npm publish 报 ENEEDAUTH | registry 匿名但 npm 前置登录 | 配 `_authToken` 假令牌 |
 | jj-server 数据丢失 | 每次重启 DROP 全部会话 | 已改 additive DDL（勿再引入 DROP） |
-| sandbox pod 拉不到 worker | `rucoder-worker:dev not found` | 必须先构建 worker-go 镜像 |
+| sandbox pod 拉不到 worker | `rucoder-worker:v0.0.1 not found` | 必须先构建 worker-go 镜像 |
 
 ---
 

@@ -81,12 +81,12 @@ import re, sys
 path, key, image, oldv, version = sys.argv[1:6]
 s = open(path).read()
 newline = f"    image: rucoder-artifact.temp.10.199.64.20.nip.io/{image}:{version}"
-endpoint = f"    image: rucoder-artifact.temp.10.199.64.20.nip.io/{image}:v{oldv}" if oldv else None
+endpoint = f"    image: rucoder-artifact.temp.10.199.64.20.nip.io/{image}:{oldv}" if oldv else None
 if endpoint and endpoint in s:
     s = s.replace(endpoint, newline, 1)
 else:
-    # fall back to any :vX.Y.Z / :dev tag for this image
-    pat = re.compile(rf"(    image: rucoder-artifact\.temp\.10\.199\.64\.20\.nip\.io/{re.escape(image)}:)(?:v[0-9.]+|dev)")
+    # fall back to any :vX.Y.Z tag for this image
+    pat = re.compile(rf"(    image: rucoder-artifact\.temp\.10\.199\.64\.20\.nip\.io/{re.escape(image)}:)v[0-9.]+")
     s, n = pat.subn(lambda m: m.group(1) + version, s, count=1)
     if n == 0:
         sys.exit(f"image line not found for {image}")

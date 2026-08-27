@@ -1,6 +1,6 @@
 global:
   imageRegistry: rucoder-artifact.temp.10.199.64.20.nip.io
-  imageTag: dev
+  imageTag: v0.0.1
   # HTTP(S) proxy used to pull public (docker.io) images in the infra pods.
   # e.g. http://mihomo.develop.svc.cluster.local:7890
   httpProxy: http://mihomo.develop.svc.cluster.local:7890
@@ -72,7 +72,7 @@ llm:
 
 k8s:
   namespace: temp
-  workerImage: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-worker:dev
+  workerImage: rucoder-artifact.temp.10.199.64.20.nip.io/rucoder-worker:v0.0.1
 
 resources:
   requests:
