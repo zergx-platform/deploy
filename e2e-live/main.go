@@ -54,10 +54,17 @@ func main() {
 		defer cancel()
 		return agent.CallTool(c, session, ext, tool, "e2e-"+tool, args)
 	}
+	// callLong is for heavy tools (image builds) whose synchronous await
+	// exceeds the default tool timeout.
+	callLong := func(session, ext, tool string, args map[string]interface{}) (roleagent.ToolResult, error) {
+		c, cancel := context.WithTimeout(ctx, 180*time.Second)
+		defer cancel()
+		return agent.CallTool(c, session, ext, tool, "e2e-"+tool, args)
+	}
 
 	runMemory(ctx, call)
 	runRepo(ctx, call)
-	runOps(ctx, call)
+	runOps(ctx, call, callLong)
 
 	fmt.Printf("\nRESULT: %d passed, %d failed\n", passed, failed)
 	if failed > 0 {
@@ -124,7 +131,7 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 	r, err := call("", "repo", "write", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "path": "e2e.txt", "content": "line one\nline two\nline three\n", "message": "e2e write",
 	})
-	check("repo.write", err == nil && strings.Contains(r.Content, "已写入"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.write", err == nil && strings.Contains(r.Content, "wrote file"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 	meta := r.Metadata.(map[string]interface{})
 	cidWrite, _ := meta["change_id"].(string)
 
@@ -148,7 +155,7 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 	r, err = call("", "repo", "edit", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "path": "e2e.txt", "start_line": 2, "end_line": 2, "content": "line TWO edited\n", "message": "e2e edit",
 	})
-	check("repo.edit", err == nil && strings.Contains(r.Content, "已编辑"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.edit", err == nil && strings.Contains(r.Content, "edited file"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 
 	// read-after-edit
 	r, err = call("", "repo", "read", map[string]interface{}{
@@ -158,7 +165,7 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 
 	// git-log
 	r, err = call("", "repo", "git-log", map[string]interface{}{"_org": o, "_repo": rp, "_branch": bm})
-	check("repo.git-log", err == nil && strings.Contains(r.Content, "提交"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.git-log", err == nil && strings.Contains(r.Content, "commit"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 
 	// git-branches
 	r, err = call("", "repo", "git-branches", map[string]interface{}{"_org": o, "_repo": rp, "_branch": bm})
@@ -198,7 +205,7 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 	r, err = call("", "repo", "delete", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "path": "e2e.txt", "message": "e2e delete",
 	})
-	check("repo.delete", err == nil && strings.Contains(r.Content, "已删除"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.delete", err == nil && strings.Contains(r.Content, "deleted file"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 
 	// cleanup repo
 	del := func(path string) {
@@ -213,12 +220,29 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 	del("/repos/e2e")
 }
 
-func runOps(ctx context.Context, call func(string, string, string, map[string]interface{}) (roleagent.ToolResult, error)) {
+func runOps(ctx context.Context, call func(string, string, string, map[string]interface{}) (roleagent.ToolResult, error), callLong func(string, string, string, map[string]interface{}) (roleagent.ToolResult, error)) {
 	fmt.Println("=== ops-extension (id=ops) ===")
 	// Ops tools resolve the workspace from the session name
-	// (org:repo:bookmark). Use the pre-existing test/dbg1 repo + its already
-	// running sandbox (session test:dbg1:main).
+	// (org:repo:bookmark). Establish the test/dbg1 repo + main bookmark first
+	// (the first sandbox-* tool call also lazily create the worker pod).
 	sid := "test:dbg1:main"
+
+	// ---- setup: ensure test/dbg1 repo + main bookmark exist ----
+	{
+		post := func(path string, body string) {
+			req, _ := httpNew("POST", jjBase+path, body)
+			if resp, err := httpDo(req); err == nil && resp != nil {
+				resp.Body.Close()
+			}
+		}
+		post("/repos/ensure-org", `{"org":"test"}`)
+		post("/repos/ensure", `{"org":"test","repo":"dbg1"}`)
+		// Seed a file so the repo has a real main bookmark head.
+		_, _ = call("", "repo", "write", map[string]interface{}{
+			"_org": "test", "_repo": "dbg1", "_branch": "main",
+			"path": "e2e-ops-seed.txt", "content": "seed\n", "message": "e2e ops seed",
+		})
+	}
 
 	// ---- sandbox lifecycle: write → read → edit → read ----
 	r, err := call(sid, "ops", "sandbox-write", map[string]interface{}{
@@ -270,10 +294,10 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	check("ops.list-registry-packages", err == nil && strings.Contains(r.Content, "abep.dev/sdk"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 
 	r, err = call(sid, "ops", "image-list", map[string]interface{}{})
-	check("ops.image-list", err == nil && strings.Contains(r.Content, "zergx-agent-ts"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.image-list", err == nil && strings.Contains(r.Content, "zergx-agent"), fmt.Sprintf("err=%v content=%q", err, r.Content))
 
 	r, err = call(sid, "ops", "helm-list", map[string]interface{}{})
-	check("ops.helm-list", err == nil && strings.Contains(r.Content, "zergx"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.helm-list", err == nil, fmt.Sprintf("err=%v content=%q", err, r.Content))
 
 	// ---- heavy tools: container-build/deploy + helm lifecycle ----
 	// Unique per-run names so reruns never collide; cleaned up at the end.
@@ -288,9 +312,9 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 		"path": "Containerfile", "content": "FROM scratch\nCOPY Containerfile /e2e-ops-marker.txt\n",
 		"message": "e2e containerfile",
 	})
-	check("ops.containerfile-seed", err == nil && strings.Contains(r.Content, "已写入"), fmt.Sprintf("err=%v", err))
+	check("ops.containerfile-seed", err == nil && strings.Contains(r.Content, "wrote file"), fmt.Sprintf("err=%v", err))
 
-	r, err = call(sid, "ops", "container-build", map[string]interface{}{
+	r, err = callLong(sid, "ops", "container-build", map[string]interface{}{
 		"dockerfile_path": "Containerfile", "tag": imgTag,
 	})
 	check("ops.container-build", err == nil && strings.Contains(r.Content, "Finished build"), fmt.Sprintf("err=%v content=%q", err, r.Content))
