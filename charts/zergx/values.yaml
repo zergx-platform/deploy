@@ -18,7 +18,7 @@ hostPathRoot: /home/develop/ZergX
 infra:
   postgres:
     enabled: true
-    image: artifact.zergx.svc.cluster.local/postgres:18-alpine3.24
+    image: artifact.zergx.svc.cluster.local/library/postgres:18-alpine3.24
     storage: 100Gi
     user: root
     password: devpassword
@@ -28,7 +28,7 @@ infra:
       repoext: zergx_repoext
   nats:
     enabled: true
-    image: artifact.zergx.svc.cluster.local/nats:2.14.5-alpine
+    image: artifact.zergx.svc.cluster.local/library/nats:2.14.5-alpine
     storage: 100Gi
   selenium:
     enabled: true
@@ -71,7 +71,10 @@ llm:
   model: deepseek-v4-pro
 
 k8s:
-  namespace: zergx
+  # runtimeNamespace is where ops-extension creates sandboxes and user
+  # deployments. The platform services themselves live in the release
+  # namespace (zergx); runtime workloads are isolated in zergxd.
+  runtimeNamespace: zergxd
   workerImage: artifact.zergx.svc.cluster.local/zergx-worker:v0.0.1
 
 resources:

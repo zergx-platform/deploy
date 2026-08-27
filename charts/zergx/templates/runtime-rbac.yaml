@@ -1,0 +1,46 @@
+{{- /* Runtime-namespace RBAC: grant the ops-extension ServiceAccount (in the
+       release namespace) the same workload control inside k8s.runtimeNamespace,
+       so sandboxes and deployments land there while the platform stays here. */ -}}
+{{- if (index .Values.services "ops-extension").enabled }}
+{{- if .Values.k8s.runtimeNamespace }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ops-extension
+  namespace: {{ .Values.k8s.runtimeNamespace }}
+  labels:
+    {{- include "zergx.labels" (dict "Chart" .Chart "Release" .Release "name" "ops-extension") | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/exec", "events", "services", "secrets", "configmaps", "persistentvolumeclaims", "serviceaccounts"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ops-extension
+  namespace: {{ .Values.k8s.runtimeNamespace }}
+  labels:
+    {{- include "zergx.labels" (dict "Chart" .Chart "Release" .Release "name" "ops-extension") | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ops-extension
+subjects:
+  - kind: ServiceAccount
+    name: ops-extension
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}
