@@ -1,3 +1,7 @@
+{{- /* ops-extension's own namespace (release namespace = zergx, the platform/
+       infrastructure namespace) only needs read access: all of its write
+       operations (sandboxes, deployments, helm releases) target k8s.runtimeNamespace
+       (zergxd, the develop environment). Write RBAC lives in runtime-rbac.yaml. */ -}}
 {{- if (index .Values.services "ops-extension").enabled }}
 apiVersion: v1
 kind: ServiceAccount
@@ -13,44 +17,23 @@ metadata:
   labels:
     {{- include "zergx.labels" (dict "Chart" .Chart "Release" .Release "name" "ops-extension") | nindent 4 }}
 rules:
+  # Read-only in the platform namespace: ops-extension may inspect but never
+  # mutate zergx services.
   - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: [""]
-    resources: ["pods/log", "pods/exec"]
-    verbs: ["get", "list"]
-  - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["list", "watch"]
-  - apiGroups: [""]
-    resources: ["services"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["apps"]
-    resources: ["replicasets"]
+    resources: ["pods", "pods/log", "events", "services", "secrets", "configmaps", "persistentvolumeclaims", "serviceaccounts"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  # Helm releases need broad resource control within the namespace (charts may
-  # contain any workload kind). Kept namespace-scoped via Role/RoleBinding.
-  - apiGroups: [""]
-    resources: ["configmaps", "persistentvolumeclaims", "serviceaccounts"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["apps"]
-    resources: ["statefulsets", "daemonsets"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["batch"]
     resources: ["jobs", "cronjobs"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["rbac.authorization.k8s.io"]
     resources: ["roles", "rolebindings"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
