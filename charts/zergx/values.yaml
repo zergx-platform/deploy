@@ -146,7 +146,7 @@ services:
     # floating tag, so a rebuilt tag would never roll out. Bump this digest
     # whenever the go-registry image is rebuilt (buildctl push prints the
     # sha256).
-    image: artifact.zergx.svc.cluster.local/go-registry@sha256:3065986777485d19a7ecef7b1939bfb47761c381fb28d7158af1e52aeb1460cd
+    image: artifact.zergx.svc.cluster.local/go-registry@sha256:78574b905f9fc1c4ce6fc7209e2a04b817e5447836af2af04cf6d79ac73ba550
   repo:
     enabled: true
     port: 80
@@ -164,7 +164,7 @@ services:
     port: 80
     containerPort: 8080
     # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
-    image: artifact.zergx.svc.cluster.local/zergx-ops-extension:v0.0.6
+    image: artifact.zergx.svc.cluster.local/zergx-ops-extension:v0.0.8
   wdbidi-extension:
     enabled: true
     port: 80
