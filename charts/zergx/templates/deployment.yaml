@@ -62,7 +62,7 @@ spec:
           envFrom:
             - secretRef:
                 name: zergx-external
-          {{- if eq $name "repo" }}
+          {{- if eq $name "jjlab" }}
           env:
             - name: HTTP_PROXY
               value: {{ ($.Values.global.httpProxy) | default "http://mihomo.develop.svc.cluster.local:7890" | quote }}
@@ -71,7 +71,7 @@ spec:
             - name: NO_PROXY
               value: "localhost,127.0.0.1,.svc.cluster.local,.svc,.nip.io,10.199.64.20,.develop.10.199.64.20.nip.io"
           {{- end }}
-          {{- if eq $name "repo" }}
+          {{- if eq $name "jjlab" }}
           volumeMounts:
             - name: repos
               mountPath: /home/user/.zergx/repos
@@ -120,7 +120,7 @@ spec:
             {{- else }}
             {{- toYaml $.Values.resources | nindent 12 }}
             {{- end }}
-      {{- if eq $name "repo" }}
+      {{- if eq $name "jjlab" }}
       volumes:
         - name: repos
           hostPath:

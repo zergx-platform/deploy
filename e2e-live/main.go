@@ -1,7 +1,7 @@
 // Package main is the live E2E suite for the extension servers.
 //
 // It drives the DEPLOYED services over real NATS (abep protocol) and real
-// jj-server/postgres — no mocks, no inproc. Run after a deployment:
+// jjlab/postgres — no mocks, no inproc. Run after a deployment:
 //
 //	go run .
 //
@@ -25,7 +25,7 @@ import (
 
 const natsURL = "nats://nats.zergx.svc.cluster.local:4222"
 const pgDSN = "postgres://root:devpassword@postgres.zergx.svc.cluster.local:5432/zergx_agent"
-const jjBase = "http://repo.zergx.svc.cluster.local/api/v1"
+const jjBase = "http://jjlab.zergx.svc.cluster.local/api/v1"
 const opsBase = "http://ops-extension.zergx.svc.cluster.local/api/v1"
 
 var passed, failed int

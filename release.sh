@@ -7,7 +7,7 @@
 #
 # What it does, per service:
 #   1. bumps the service's version in charts/zergx/values.yaml (vX.Y.Z)
-#   2. syncs the source repo's dev bookmark from forgejo (via jj-server)
+#   2. syncs the source repo's dev bookmark from forgejo (via jjlab)
 #   3. builds & pushes {image}:{version} through ops-extension /images/build
 #      using image_tag (source stays on dev, image tag is the release)
 #   4. keeps the previous image tag as a fallback record
@@ -28,7 +28,7 @@ NAMESPACE="${NAMESPACE:-zergx}"
 # service -> (chart key, jj repo, source image name, k8s deployment)
 declare -A SERVICES=(
   [ui]="ui|zergx-ui|zergx-ui|ui"
-  [repo]="repo|jj-server|zergx-repo|zergx-repo"
+  [jjlab]="jjlab|jjlab|jjlab|jjlab"
   [repo-extension]="repo-extension|repo-extension|zergx-repo-extension|zergx-repo-extension"
   [ops-extension]="ops-extension|ops-extension|zergx-ops-extension|zergx-ops-extension"
   [wdbidi-extension]="wdbidi-extension|wdbidi-extension|zergx-wdbidi-extension|zergx-wdbidi-extension"
@@ -97,7 +97,7 @@ PY
   # 2. Force-refresh the build org's copy of the forgejo repo: DELETE the
   #    existing repo (idempotent) then clone, so the version bump ALWAYS builds
   #    today's master — a stale cached clone must never ship a bumped version
-  #    carrying old code. jj-server's clone returns 409 CONFLICT for an existing
+  #    carrying old code. jjlab's clone returns 409 CONFLICT for an existing
   #    repo, which `curl -f` would turn into a silent no-op (the prior bug).
   curl -sf -X DELETE "$JJSERVER/api/v1/repos/build/$repo" >/dev/null 2>&1 || true
   curl -sf -X POST -H 'Content-Type: application/json' \

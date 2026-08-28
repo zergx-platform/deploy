@@ -1,7 +1,7 @@
 # e2e-live — extension servers 线上 E2E
 
 真实环境的端到端测试：驱动**已部署**的 repo/memory/ops 三个扩展，
-走真实 NATS（abep 协议）+ 真实 jj-server + 真实 Postgres + 真实 k8s sandbox。
+走真实 NATS（abep 协议）+ 真实 jjlab + 真实 Postgres + 真实 k8s sandbox。
 无 mock、无 inproc。
 
 ## 前置
@@ -9,7 +9,7 @@
 - 服务已部署到 temp 集群且健康（`/api/v1/health` = 200）
 - 本机可直连集群 svc DNS：
   - `zergx-nats.temp.svc.cluster.local:4222`
-  - `zergx-repo.temp.svc.cluster.local`（jj-server）
+  - `zergx-repo.temp.svc.cluster.local`（jjlab）
   - `zergx-postgres.temp.svc.cluster.local:5432`
   - `zergx-ops-extension.temp.svc.cluster.local`
 - Go 1.26，artifact GOPROXY 可用
@@ -47,7 +47,7 @@ GOSUMDB=off go run .
 ## 注意
 
 - repo 工具用 `_org/_repo/_branch` 参数直传（绕过 repo-extension 的 PG 会话映射表），
-  聚焦工具转发与 jj-server 真实交互的正确性。
+  聚焦工具转发与 jjlab 真实交互的正确性。
 - git-show/git-diff 用 `write` 返回的 change_id 作 rev（jj 的 change id，非 commit id）。
 - ops 的 sandbox 工具通过 session 名 `test:dbg1:main` 解析 workspace；sandbox
   文件路径必须是 workspace 内相对路径（绝对路径会被 `path escapes workspace` 拒绝）。

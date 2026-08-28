@@ -1,7 +1,7 @@
 # zergx 上线流程（Deployment Runbook）
 
 > 本文档描述 zergx **多语言（TypeScript / Go / Rust）** 单仓库的完整上线流程：
-> 从代码提交 → SDK 发布 → jj-server 同步 → ops-extension 异步构建 → helm 部署 → 验证。
+> 从代码提交 → SDK 发布 → jjlab 同步 → ops-extension 异步构建 → helm 部署 → 验证。
 > 所有命令均以当前集群环境为准（namespace `temp`，单节点 hostPath 存储）。
 
 ---
@@ -12,8 +12,8 @@
 |---|---|---|---|---|
 | agent | `agent-ts/` | TypeScript（Vercel AI SDK） | `zergx-agent-ts:v0.0.1` | 中枢 agent |
 | artifact | `artifact/` | Go | `go-registry@<sha256>`（**digest 固定**） | 包/O CI registry（自托管） |
-| jj-server | `jj-server/` | Rust | `zergx-repo:v0.0.1` | 仓库/jj 后端 |
-| repo-extension | `repo-extension/` | Go | `zergx-repo-extension:v0.0.1` | 文件/git 工具层 |
+| jjlab | `jjlab/` | Rust | `jjlab:v0.0.1` | 仓库/jj 后端 |
+| repo-extension | `repo-extension/` | Go | `jjlab-extension:v0.0.1` | 文件/git 工具层 |
 | memory-extension | `memory-extension/` | Go | `zergx-memory-extension:v0.0.1` | 会话记忆 |
 | ops-extension | `ops-extension/` | Go（内嵌 Svelte SPA） | `zergx-ops-extension:v0.0.1` | 构建/发布/沙箱工具层 |
 | wdbidi-extension | `wdbidi-extension/` | Go | `zergx-wdbidi-extension:v0.0.1` | 浏览器工具（WebDriver BiDi） |
@@ -33,10 +33,10 @@
 | OCI/包 registry | `zergx-artifact.temp.10.199.64.20.nip.io`（svc 内 `zergx-artifact.temp.svc.cluster.local`） |
 | Go module registry（GOPROXY） | `http://zergx-artifact.temp.svc.cluster.local/pkgs/go` |
 | npm registry | `http://zergx-artifact.temp.svc.cluster.local/pkgs/npm/` |
-| jj-server | `http://zergx-repo.temp.svc.cluster.local` |
+| jjlab | `http://jjlab.temp.svc.cluster.local` |
 | ops-extension 构建接口 | `http://zergx-ops-extension.temp.svc.cluster.local/api/v1/images/build` |
 | buildkitd | `tcp://zergx-buildkitd.temp.svc.cluster.local:1234` |
-| 构建源码事实源 | jj-server `build` org（每 repo 有 `master`/`dev` bookmark） |
+| 构建源码事实源 | jjlab `build` org（每 repo 有 `master`/`dev` bookmark） |
 
 ---
 
@@ -67,10 +67,10 @@ go vet ./...      # 静态检查
 go test ./...     # 单元测试（artifact 有 Makefile：`make check` = fmt+vet+test）
 ```
 
-### Rust 项目（jj-server）
+### Rust 项目（jjlab）
 
 ```bash
-cd jj-server
+cd jjlab
 cargo build       # 编译
 cargo test        # 单元测试（lib.rs + main.rs）
 cargo clippy --all-targets -- -D warnings   # lint（如有配置）
@@ -96,7 +96,7 @@ AGENT_BASE=http://zergx-agent.temp.svc.cluster.local bash scripts/smoke.sh
    ├─ 是 → 第 3 节：发布 SDK 到 artifact（Go module + npm），
    │        然后下游服务 chore 更新（第 4 节）
    ▼
-同步源码到 jj-server build org（第 5 节）
+同步源码到 jjlab build org（第 5 节）
    │  2. DELETE /repos/build/<repo> → clone（带认证 git_url）→ POST /repos/build/<repo>/bookmarks 建 dev
    ▼
 ops-extension 异步构建（第 6 节）
@@ -220,15 +220,15 @@ done
 
 ---
 
-## 5. 同步源码到 jj-server build org
+## 5. 同步源码到 jjlab build org
 
-构建的事实源是 jj-server 的 `build` org，**不是 forgejo 直接构建**。
+构建的事实源是 jjlab 的 `build` org，**不是 forgejo 直接构建**。
 每次改完代码 push forgejo 后，必须把 `build` org 对应 repo 重新 clone 到最新 commit。
 
 ```bash
 REPO=ops-extension   # 改成实际服务目录名（见第 0 节映射）
 ORG=build
-JJ=http://zergx-repo.temp.svc.cluster.local
+JJ=http://jjlab.temp.svc.cluster.local
 
 # 1. 删除旧 repo（连续两次，防 jj init 残留目录竞态）
 curl -s -X DELETE "$JJ/api/v1/repos/$ORG/$REPO"
@@ -263,11 +263,11 @@ curl -s -X POST -H 'Content-Type: application/json' \
 ```bash
 OPS=http://zergx-ops-extension.temp.svc.cluster.local
 
-# repo 模式（标准路径）：从 jj-server 拉源码构建
+# repo 模式（标准路径）：从 jjlab 拉源码构建
 curl -s -X POST -H 'Content-Type: application/json' \
   -d '{
     "org": "build",
-    "repo": "ops-extension",       # jj-server build org 里的 repo 名
+    "repo": "ops-extension",       # jjlab build org 里的 repo 名
     "bookmark": "dev",             # 决定镜像 tag 后缀
     "tag": "zergx-ops-extension",# 镜像名（见第 0 节映射）
     "dockerfile": "Dockerfile",
@@ -280,7 +280,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 > hostPath `<hostPathRoot>/buildkit`，跨 pod 重启/helm upgrade 存活。
 > **不要默认传 `no_cache:true`**——buildkit 的层缓存按 Dockerfile 指令 +
 > 内容哈希自动失效，改源码会精确重建对应层；全局 no-cache 会每次从零重编
-> 整个依赖树（jj-server 全量 ≈ 13min，增量 ≈ 30s）。仅在怀疑缓存损坏时
+> 整个依赖树（jjlab 全量 ≈ 13min，增量 ≈ 30s）。仅在怀疑缓存损坏时
 > 显式传 `no_cache:true` 强制重跑。raw 模式（无 repo、纯 Containerfile 文本）
 > 服务端已强制 no-cache，前端无需传。
 
@@ -305,8 +305,8 @@ curl -sN "$OPS/api/v1/builds/$BID/stream"
 |---|---|---|
 | agent-ts | agent-ts | zergx-agent-ts |
 | worker-go | worker-go | zergx-worker |
-| jj-server | jj-server | zergx-repo |
-| repo-extension | repo-extension | zergx-repo-extension |
+| jjlab | jjlab | jjlab |
+| repo-extension | repo-extension | jjlab-extension |
 | memory-extension | memory-extension | zergx-memory-extension |
 | ops-extension | ops-extension | zergx-ops-extension |
 | wdbidi-extension | wdbidi-extension | zergx-wdbidi-extension |
@@ -367,7 +367,7 @@ helm -n temp upgrade zergx charts/zergx
 镜像固定语义化版本（`v0.0.x`），不再用浮动 `:dev`。升级某服务：
 
 ```bash
-for d in zergx-agent zergx-worker zergx-repo zergx-repo-extension \
+for d in zergx-agent zergx-worker jjlab jjlab-extension \
          zergx-memory-tools zergx-ops-extension zergx-wdbidi-extension \
          zergx-gateway; do
   kubectl -n temp rollout restart deployment/$d
@@ -388,7 +388,7 @@ kubectl -n temp get pods -o wide
 
 # 2. 健康检查
 for svc in zergx-agent zergx-wdbidi-extension zergx-memory-tools \
-           zergx-ops-extension zergx-repo-extension; do
+           zergx-ops-extension jjlab-extension; do
   curl -s -o /dev/null -w "$svc -> %{http_code}\n" \
     "http://$svc.temp.svc.cluster.local/api/v1/health"
 done
@@ -410,13 +410,13 @@ curl -s -I -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
 |---|---|---|
 | artifact 镜像浮动 tag 不重拉 | 新 go-registry 不生效 | 镜像 digest 固定 + 每次重建更新 chart |
 | buildkit 无持久卷 | pod 重启后缓存全丢、每次全量重编 | chart 已挂 hostPath `<root>/buildkit`；勿再依赖 no_cache 防陈旧 |
-| 误用 no_cache | 每次从零编依赖树（jj-server ≈13min） | 默认不传 no_cache；仅在怀疑缓存损坏时传 |
+| 误用 no_cache | 每次从零编依赖树（jjlab ≈13min） | 默认不传 no_cache；仅在怀疑缓存损坏时传 |
 | clone 不带认证 | `could not read Username` | `git_url` 用 `root:devpassword@` |
 | clone 后无 dev bookmark | 构建推到 `:master` 而非 `:dev` | `POST /repos/{org}/{repo}/bookmarks` 建 `dev` |
 | go 私有模块 sumdb 校验 | `unknown revision` / sum 校验失败 | `GOSUMDB=off` + artifact GOPROXY |
 | npm 覆盖旧版本 | `cannot publish over previously published` | bump 版本号 |
 | npm publish 报 ENEEDAUTH | registry 匿名但 npm 前置登录 | 配 `_authToken` 假令牌 |
-| jj-server 数据丢失 | 每次重启 DROP 全部会话 | 已改 additive DDL（勿再引入 DROP） |
+| jjlab 数据丢失 | 每次重启 DROP 全部会话 | 已改 additive DDL（勿再引入 DROP） |
 | sandbox pod 拉不到 worker | `zergx-worker:v0.0.1 not found` | 必须先构建 worker-go 镜像 |
 
 ---
@@ -430,8 +430,8 @@ cd ops-extension
 go build ./... && go vet ./... && go test ./...        # 门禁
 git add -A && git commit -m "fix: ..." && git push origin master   # 提交
 
-# 同步 jj-server（第 5 节）
-JJ=http://zergx-repo.temp.svc.cluster.local
+# 同步 jjlab（第 5 节）
+JJ=http://jjlab.temp.svc.cluster.local
 curl -s -X DELETE "$JJ/api/v1/repos/build/ops-extension"; sleep 2
 curl -s -X DELETE "$JJ/api/v1/repos/build/ops-extension"; sleep 2
 curl -s -X POST -H 'Content-Type: application/json' \
