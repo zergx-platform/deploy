@@ -130,7 +130,7 @@ services:
     port: 80
     containerPort: 8080
     # Go aggregate API + streaming reverse proxy + embedded SPA.
-    image: artifact.zergx.svc.cluster.local/zergx-ui:v0.0.8
+    image: artifact.zergx.svc.cluster.local/zergx-ui:v0.0.9
   artifact:
     enabled: true
     port: 80
