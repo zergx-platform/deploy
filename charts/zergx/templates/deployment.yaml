@@ -75,7 +75,7 @@ spec:
           volumeMounts:
             - name: repos
               mountPath: /home/user/.zergx/repos
-            - name: repo-manager-data
+            - name: data
               mountPath: /data
           {{- end }}
           {{- if eq $name "artifact" }}
@@ -126,9 +126,9 @@ spec:
           hostPath:
             path: {{ $.Values.hostPathRoot }}/zergx-repos
             type: DirectoryOrCreate
-        - name: repo-manager-data
+        - name: data
           hostPath:
-            path: {{ $.Values.hostPathRoot }}/zergx-repo-manager
+            path: {{ $.Values.hostPathRoot }}/zergx-data
             type: DirectoryOrCreate
       {{- end }}
       {{- if eq $name "artifact" }}
