@@ -20,7 +20,7 @@
 # rolled back (helm rollback + re-pointing the image tag to the older one).
 set -euo pipefail
 
-JJSERVER="${JJSERVER:-http://repo.zergx.svc.cluster.local}"
+JJSERVER="${JJSERVER:-http://jjlab.zergx.svc.cluster.local}"
 OPS="${OPS:-http://ops-extension.zergx.svc.cluster.local}"
 CHART_VALUES="$(cd "$(dirname "$0")" && pwd)/charts/zergx/values.yaml"
 NAMESPACE="${NAMESPACE:-zergx}"
