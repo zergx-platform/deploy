@@ -325,6 +325,31 @@ curl -sN "$OPS/api/v1/builds/$BID/stream"
 
 ---
 
+## 6.5 发布政策（强制）：temp 先行，全量绿后才许动 zergx
+
+**zergx namespace 只允许在 temp namespace 完整验证通过后发布。** 无例外。
+
+强制清单（按序执行，任何一步不绿即停）：
+
+1. **SDK 门禁**：`abc-protocol/scripts/ci.sh` 连续两次 GATE PASSED
+   （含 `-race`；race 抓过的都是真 bug，不许绕过）。
+2. **消费方门禁**：5 服务 + agent-ts 各自测试绿；interop 双向绿。
+3. **镜像构建**（构建产物惰性，可先行；但不得触发任何 zergx ns 变更）。
+4. **temp 部署 = 升级路径彩排**：`helm --kube-context temp -n temp upgrade zergx-dev ...`
+   —— 必须是 **upgrade 而非 uninstall+install**（fresh install 不会踩
+   迁移路径；0.2.0 事故正是只在 fresh broker 上验证过）。broker 里若
+   存在需迁移的旧状态，保留它并在升级后确认自动迁移。
+5. **temp 全量**：e2e-live（ABC_E2E_* 指向 temp）52 项全过 +
+   smoke.sh 13 项 + durability.sh 4 项。
+6. 以上全绿 → `helm --kube-context zergx -n zergx upgrade zergx` →
+   rollout 全部 successfully → 生产 e2e + smoke + durability 复跑。
+7. 任一环节失败：修完从第 1 步重来；禁止在 zergx 上试错。
+
+历史教训（写死在这里）：
+- 0.2.0 发布时 temp 只验证了 fresh install，未彩排带旧流的升级路径，
+  生产滚动遭遇 "subjects overlap" 崩溃环，人工删流补救 12 分钟。
+  之后 Connect() 内置了自迁移（0.2.1），且本政策要求 upgrade 彩排。
+
 ## 7. helm 部署
 
 ```bash
