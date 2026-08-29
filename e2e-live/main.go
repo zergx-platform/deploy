@@ -14,6 +14,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -181,14 +182,15 @@ func runLifecycle(ctx context.Context, call func(string, string, string, map[str
 	got = waitBranches("", "feat")
 	check("lifecycle.deleted removes bookmark", !strings.Contains(got, "feat") && strings.Contains(got, "main"), fmt.Sprintf("branches=%q", got))
 
-	// cleanup: drop the remaining sessions (workspace org stays in jjlab as
-	// an e2e artifact, like the pre-existing test/dbg1 org).
+	// cleanup: session first (the reconciler resurrects workspaces for
+	// surviving sessions), then the org shells.
 	for _, sid := range []string{s1} {
 		req, _ := httpNew("DELETE", agentBase+"/api/v1/sessions/"+sid, "")
 		if r, err := httpDo(req); err == nil {
 			r.Body.Close()
 		}
 	}
+	cleanupWorkspace("", org)
 }
 
 func runMemory(ctx context.Context, call func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
@@ -500,6 +502,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 		}
 	}
 	cleanupDeploy(runTag)
+	cleanupWorkspace(sid, sorg)
 }
 
 // runProgressInterrupt: during a real image build, progress telemetry must
@@ -579,6 +582,7 @@ func runProgressInterrupt(ctx context.Context, ag *agent.Agent, call, callLong f
 	case <-time.After(15 * time.Second):
 		check("interrupt.aborts in-flight call", false, "call still pending 15s after interrupt")
 	}
+	cleanupWorkspace(psid, porg)
 }
 
 // runOffload: a >256KB tool result must land in the object store and the
@@ -662,6 +666,56 @@ func runIdempotency(ctx context.Context, nb bus.Bus) {
 		}
 		msg.Ack()
 	}
+}
+
+// cleanupWorkspace removes a test session (agent PG) and its jjlab org
+// shell. Session FIRST: the repo-extension reconciler resurrects workspaces
+// for any surviving org:repo:bookmark session, so deleting the repo alone
+// never sticks.
+func cleanupWorkspace(sid, org string) {
+	if req, e := httpNew("DELETE", "http://agent.zergx.svc.cluster.local/api/v1/sessions/"+sid, ""); e == nil {
+		if resp, e := httpDo(req); e == nil {
+			resp.Body.Close()
+		}
+	}
+	if org == "" {
+		return
+	}
+	// drop repos then the org shell
+	if d, err := jsonGet(jjBase + "/repos?org=" + org); err == nil {
+		var list struct {
+			Orgs []struct {
+				Repos []struct {
+					Repo string `json:"repo"`
+				} `json:"repos"`
+			} `json:"orgs"`
+		}
+		if json.Unmarshal(d, &list) == nil {
+			for _, o := range list.Orgs {
+				for _, r := range o.Repos {
+					if req, e := httpNew("DELETE", jjBase+"/repos/"+org+"/"+r.Repo, ""); e == nil {
+						if resp, e := httpDo(req); e == nil {
+							resp.Body.Close()
+						}
+					}
+				}
+			}
+		}
+	}
+	if req, e := httpNew("DELETE", jjBase+"/repos/"+org, ""); e == nil {
+		if resp, e := httpDo(req); e == nil {
+			resp.Body.Close()
+		}
+	}
+}
+
+func jsonGet(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return io.ReadAll(resp.Body)
 }
 
 // natsToken mirrors the protocol's session token derivation.

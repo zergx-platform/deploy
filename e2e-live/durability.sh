@@ -62,6 +62,8 @@ msgs=$(curl -sf "$ZAGENT/api/v1/sessions/$SID/messages")
 echo "$msgs" | grep -qi 'DUR-OK' \
   && pass "queued prompt processed across restart" || fail "prompt lost ($msgs)"
 
+# cleanup: remove the session (the reconciler otherwise keeps its workspace)
+curl -s -X DELETE "$ZAGENT/api/v1/sessions/$SID" -o /dev/null
 echo "======================================"
 echo "RESULT: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
