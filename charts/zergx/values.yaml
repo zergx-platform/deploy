@@ -164,7 +164,7 @@ services:
     port: 80
     containerPort: 8080
     # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
-    image: artifact.zergx.svc.cluster.local/zergx-ops-extension:v0.0.12
+    image: artifact.zergx.svc.cluster.local/zergx-ops-extension:v0.0.14
   wdbidi-extension:
     enabled: true
     port: 80

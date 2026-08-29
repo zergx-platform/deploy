@@ -18,7 +18,11 @@ import (
 	"strings"
 	"time"
 
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go/agent"
+	"forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go/bus"
 	natsbus "forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go/transport/nats"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -70,10 +74,28 @@ func main() {
 		return ag.CallTool(c, session, ext, tool, "e2e-"+tool, args)
 	}
 
-	runMemory(ctx, call)
-	runRepo(ctx, call)
-	runOps(ctx, call, callLong)
-	runLifecycle(ctx, call)
+	only := os.Getenv("ONLY")
+	if only == "" || only == "memory" {
+		runMemory(ctx, call)
+	}
+	if only == "" || only == "repo" {
+		runRepo(ctx, call)
+	}
+	if only == "" || only == "ops" {
+		runOps(ctx, call, callLong)
+	}
+	if only == "" || only == "lifecycle" {
+		runLifecycle(ctx, call)
+	}
+	if only == "" || only == "progress" {
+		runProgressInterrupt(ctx, ag, call, callLong)
+	}
+	if only == "" || only == "offload" {
+		runOffload(ctx, ag, call)
+	}
+	if only == "" || only == "idem" {
+		runIdempotency(ctx, bus)
+	}
 
 	fmt.Printf("\nRESULT: %d passed, %d failed\n", passed, failed)
 	if failed > 0 {
@@ -209,7 +231,8 @@ func runMemory(ctx context.Context, call func(string, string, string, map[string
 
 func runRepo(ctx context.Context, call func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
 	fmt.Println("=== repo-extension (id=repo) ===")
-	o, rp, bm := "e2e", "smoke", "main"
+	o := fmt.Sprintf("e2r%d", time.Now().UnixNano()%1_000_000)
+	rp, bm := "smoke", "main"
 
 	// ensure test repo
 	post := func(path string, body string) {
@@ -221,8 +244,11 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 		_ = err
 		_ = resp
 	}
-	post("/repos/ensure-org", `{"org":"e2e"}`)
-	post("/repos/ensure", `{"org":"e2e","repo":"smoke"}`)
+	post("/repos/ensure-org", `{"org":"`+o+`"}`)
+	post("/repos/ensure", `{"org":"`+o+`","repo":"`+rp+`"}`)
+	// no session bootstrap here on purpose: repo writes lazily adopt the
+	// workspace, and the end-of-section cleanup deletes it again — a
+	// persistent session would make the reconciler resurrect it forever.
 
 	// write
 	r, err := call("", "repo", "write", map[string]interface{}{
@@ -313,8 +339,8 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 		}
 		_ = err
 	}
-	del("/repos/e2e/smoke")
-	del("/repos/e2e")
+	del("/repos/" + o + "/" + rp)
+	del("/repos/" + o)
 }
 
 func runOps(ctx context.Context, call func(string, string, string, map[string]interface{}) (agent.ToolResult, error), callLong func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
@@ -402,14 +428,32 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	imgTag := "e2e-ops-img"
 	releaseName := "e2e-ops-helm-reprobe"
 
+	// Unique workspace per run via the supported bootstrap (session
+	// lifecycle): the section's build tools resolve from this session.
+	sorg := fmt.Sprintf("e2o%d", time.Now().UnixNano()%1_000_000)
+	sid = sorg + ":smoke:main"
+	if req, e := httpNew("POST", "http://agent.zergx.svc.cluster.local/api/v1/sessions", `{"name":"`+sid+`"}`); e == nil {
+		if resp, e := httpDo(req); e == nil {
+			resp.Body.Close()
+		}
+	}
+
 	// container-build needs a Containerfile in the workspace repo. Write one
 	// via repo-extension (test/dbg1), build it, then deploy from the image.
-	r, err = call("", "repo", "write", map[string]interface{}{
-		"_org": "test", "_repo": "dbg1", "_branch": "main",
-		"path": "Containerfile", "content": "FROM scratch\nCOPY Containerfile /e2e-ops-marker.txt\n",
-		"message": "e2e containerfile",
-	})
-	check("ops.containerfile-seed", err == nil && strings.Contains(content(r), "wrote file"), fmt.Sprintf("err=%v", err))
+	seedOK := false
+	for i := 0; i < 12; i++ {
+		r, werr := call("", "repo", "write", map[string]interface{}{
+			"_org": sorg, "_repo": "smoke", "_branch": "main",
+			"path": "Containerfile", "content": "FROM scratch\nCOPY Containerfile /e2e-ops-marker.txt\n",
+			"message": "e2e containerfile",
+		})
+		if werr == nil && strings.Contains(content(r), "wrote file") {
+			seedOK = true
+			break
+		}
+		time.Sleep(time.Second) // lifecycle bootstrap is asynchronous
+	}
+	check("ops.containerfile-seed", seedOK, "Containerfile never landed in "+sid)
 
 	r, err = callLong(sid, "ops", "container-build", map[string]interface{}{
 		"dockerfile_path": "Containerfile", "tag": imgTag,
@@ -433,7 +477,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	}
 	for p, c := range chartFiles {
 		_, _ = call("", "repo", "write", map[string]interface{}{
-			"_org": "test", "_repo": "dbg1", "_branch": "main", "path": p, "content": c, "message": "e2e chart",
+			"_org": sorg, "_repo": "smoke", "_branch": "main", "path": p, "content": c, "message": "e2e chart",
 		})
 	}
 	r, err = call(sid, "ops", "helm-install", map[string]interface{}{
@@ -456,4 +500,172 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 		}
 	}
 	cleanupDeploy(runTag)
+}
+
+// runProgressInterrupt: during a real image build, progress telemetry must
+// flow on abc.tool.progress.<callId>, and a session-scoped interrupt must
+// abort the awaiting call well before the build ends.
+func runProgressInterrupt(ctx context.Context, ag *agent.Agent, call, callLong func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
+	fmt.Println("=== progress + interrupt (ops container-build) ===")
+
+	// self-bootstrap a workspace for this build (lifecycle-anchored main)
+	porg := fmt.Sprintf("e2p%d", time.Now().UnixNano()%1_000_000)
+	psid := porg + ":prog:main"
+	if req, e := httpNew("POST", "http://agent.zergx.svc.cluster.local/api/v1/sessions", `{"name":"`+psid+`"}`); e == nil {
+		if resp, e := httpDo(req); e == nil {
+			resp.Body.Close()
+		}
+	}
+	seedOK := false
+	for i := 0; i < 10; i++ {
+		r, werr := call("", "repo", "write", map[string]interface{}{
+			"_org": porg, "_repo": "prog", "_branch": "main",
+			"path": "Containerfile", "content": "FROM scratch\nCOPY Containerfile /e2e-marker.txt\n", "message": "prog seed",
+		})
+		if werr == nil && strings.Contains(content(r), "wrote file") {
+			seedOK = true
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	check("progress.workspace seeded", seedOK, "containerfile never landed")
+
+	callID := "e2e-container-build" // must match the call helper ("e2e-"+tool)
+	sub, err := ag.SubscribeProgress(ctx, callID)
+	if err != nil {
+		check("progress.subscribe", false, err.Error())
+		return
+	}
+	got := make(chan string, 8)
+	go func() {
+		for i := 0; i < 8; i++ {
+			env, ok := sub.Next(ctx)
+			if !ok {
+				return
+			}
+			b, _ := json.Marshal(env.Payload)
+			got <- string(b)
+		}
+	}()
+
+	done := make(chan agent.ToolResult, 1)
+	errc := make(chan error, 1)
+	go func() {
+		tr, err := callLong(psid, "ops", "container-build", map[string]interface{}{
+			"dockerfile_path": "Containerfile", "tag": "e2e-prog-img",
+		})
+		done <- tr
+		errc <- err
+	}()
+
+	// wait for at least one progress event (build ~30s), then interrupt
+	var firstProgress string
+	select {
+	case firstProgress = <-got:
+		check("progress.telemetry received", strings.Contains(firstProgress, "running"), firstProgress)
+	case <-time.After(60 * time.Second):
+		check("progress.telemetry received", false, "no progress within 60s")
+	}
+	_ = sub.Close()
+
+	if err := ag.InterruptSession(ctx, "ops", psid, "e2e interrupt test"); err != nil {
+		check("interrupt.publish", false, err.Error())
+	}
+	select {
+	case tr := <-done:
+		err := <-errc // the goroutine always sends both
+		interrupted := err == nil && tr.Error != nil && strings.Contains(tr.Error.Message, "interrupt")
+		check("interrupt.aborts in-flight call", interrupted, fmt.Sprintf("err=%v res=%+v", err, tr.Error))
+	case <-time.After(15 * time.Second):
+		check("interrupt.aborts in-flight call", false, "call still pending 15s after interrupt")
+	}
+}
+
+// runOffload: a >256KB tool result must land in the object store and the
+// wire result carries an object ref (content stays a short head).
+func runOffload(ctx context.Context, ag *agent.Agent, call func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
+	fmt.Println("=== object offload (repo big read) ===")
+
+	big := strings.Repeat("OFFLOAD-MARKER\n", 30000) // ~420KB
+	r, err := call("", "repo", "write", map[string]interface{}{
+		"_org": "test", "_repo": "dbg1", "_branch": "main",
+		"path": "big.txt", "content": big, "message": "e2e offload seed",
+	})
+	check("offload.seed write", err == nil && strings.Contains(content(r), "wrote file"), fmt.Sprintf("err=%v", err))
+
+	r, err = call("", "repo", "read", map[string]interface{}{
+		"_org": "test", "_repo": "dbg1", "_branch": "main", "path": "big.txt",
+	})
+	hasObj := err == nil && r.Object != nil
+	check("offload.result carries object ref", hasObj, fmt.Sprintf("err=%v object=%+v", err, r.Object))
+	if hasObj {
+		objName := r.Object.Id
+		data, gerr := ag.GetObject(ctx, objName)
+		roundTrip := gerr == nil && data != nil && strings.Contains(string(data), "OFFLOAD-MARKER") && len(data) > 256*1024
+		check("offload.object roundtrip", roundTrip, fmt.Sprintf("err=%v size=%d", gerr, len(data)))
+	}
+	if r.Content != nil {
+		check("offload.content is a head", len(*r.Content) <= 500, fmt.Sprintf("len=%d", len(*r.Content)))
+	}
+}
+
+// runIdempotency: the same durable-inbox publish id delivered twice inside
+// the dedup window must be consumed exactly once (at-least-once + idempotent
+// publish by id). Uses a dedicated session subject consumer so it never
+// competes with the live agent's wildcard consumer.
+func runIdempotency(ctx context.Context, nb bus.Bus) {
+	fmt.Println("=== mailbox idempotency (duplicate publish id) ===")
+
+	sid := fmt.Sprintf("e2e-idem:%d", time.Now().UnixNano())
+	token := natsToken(sid)
+	subj := "abc.mailbox." + token
+
+	isub, err := nb.InboxConsume(ctx, bus.InboxConsumeOpts{Subject: subj})
+	if err != nil {
+		check("idempotency.subscribe", false, err.Error())
+		return
+	}
+	defer func() { _ = isub.Close() }()
+
+	time.Sleep(2 * time.Second) // let the pull consumer settle server-side
+	id := fmt.Sprintf("e2e-dup-%d", time.Now().UnixNano())
+	payload := map[string]interface{}{"id": id, "type": "e2e-idem", "payload": map[string]interface{}{"k": 1}}
+	for i := 0; i < 2; i++ {
+		if err := nb.InboxPublish(ctx, subj, payload, bus.InboxPublishOpts{ID: id, SessionName: sid}); err != nil {
+			check("idempotency.publish", false, err.Error())
+			return
+		}
+	}
+
+	deliveries := 0
+	deadline := time.After(15 * time.Second)
+	for {
+		select {
+		case <-deadline:
+			check("idempotency.exactly-once", deliveries == 1, fmt.Sprintf("deliveries=%d (want 1)", deliveries))
+			return
+		default:
+		}
+		cctx, ccancel := context.WithTimeout(ctx, 2*time.Second)
+		msg, ok := isub.Next(cctx)
+		ccancel()
+		if !ok {
+			continue
+		}
+		var inner struct {
+			ID string `json:"id"`
+		}
+		b, _ := json.Marshal(msg.Envelope.Payload)
+		_ = json.Unmarshal(b, &inner)
+		if inner.ID == id {
+			deliveries++
+		}
+		msg.Ack()
+	}
+}
+
+// natsToken mirrors the protocol's session token derivation.
+func natsToken(sid string) string {
+	sum := sha256.Sum256([]byte(sid))
+	return base64.RawURLEncoding.EncodeToString(sum[:])[:22]
 }
