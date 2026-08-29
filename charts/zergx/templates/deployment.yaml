@@ -30,6 +30,8 @@ spec:
     spec:
       {{- if eq $name "ops-extension" }}
       serviceAccountName: ops-extension
+      {{- else if eq $name "jjlab" }}
+      serviceAccountName: jjlab
       {{- end }}
       containers:
         - name: {{ $name }}
@@ -70,6 +72,14 @@ spec:
               value: {{ ($.Values.global.httpProxy) | default "http://mihomo.develop.svc.cluster.local:7890" | quote }}
             - name: NO_PROXY
               value: "localhost,127.0.0.1,.svc.cluster.local,.svc,.nip.io,10.199.64.20,.develop.10.199.64.20.nip.io"
+            - name: JJLAB_CI_ENABLED
+              value: "1"
+            - name: JJLAB_CI_NAMESPACE
+              value: {{ $.Values.k8s.runtimeNamespace | default "temp" | quote }}
+            - name: JJLAB_CI_IMAGE
+              value: {{ $.Values.global.imageRegistry }}/library/alpine:3
+            - name: JJLAB_BUILDKIT_ADDR
+              value: {{ printf "tcp://buildkitd.%s.svc.cluster.local:1234" $.Release.Namespace | quote }}
           {{- end }}
           {{- if eq $name "jjlab" }}
           volumeMounts:

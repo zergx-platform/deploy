@@ -1,0 +1,49 @@
+{{- /* jjlab CI RBAC: grant the jjlab ServiceAccount (release namespace) the
+       right to create/watch/delete its CI sandbox pods (+ logs) inside
+       k8s.runtimeNamespace. Mirrors runtime-rbac.yaml's model but scoped to
+       the minimal set jjlab's `kube`-crate scheduler needs.
+
+       jjlab runs its sandbox *jobs* in the runtime namespace; the platform
+       services stay in the release namespace (see runtime-rbac.yaml). */ -}}
+{{- if (index .Values.services "jjlab").enabled }}
+{{- if .Values.k8s.runtimeNamespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jjlab
+  labels:
+    {{- include "zergx.labels" (dict "Chart" .Chart "Release" .Release "name" "jjlab") | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jjlab-ci
+  namespace: {{ .Values.k8s.runtimeNamespace }}
+  labels:
+    {{- include "zergx.labels" (dict "Chart" .Chart "Release" .Release "name" "jjlab") | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jjlab-ci
+  namespace: {{ .Values.k8s.runtimeNamespace }}
+  labels:
+    {{- include "zergx.labels" (dict "Chart" .Chart "Release" .Release "name" "jjlab") | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jjlab-ci
+subjects:
+  - kind: ServiceAccount
+    name: jjlab
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}
