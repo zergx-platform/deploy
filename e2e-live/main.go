@@ -13,6 +13,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -72,10 +73,99 @@ func main() {
 	runMemory(ctx, call)
 	runRepo(ctx, call)
 	runOps(ctx, call, callLong)
+	runLifecycle(ctx, call)
 
 	fmt.Printf("\nRESULT: %d passed, %d failed\n", passed, failed)
 	if failed > 0 {
 		os.Exit(1)
+	}
+}
+
+// runLifecycle drives session lifecycle through the agent HTTP API and
+// asserts repo-extension's workspace mirroring: created anchors a bookmark,
+// forked inherits it, renamed dual-moves it, deleted removes it. The agent
+// publishes lifecycle on abc.session.lifecycle.* after each HTTP commit;
+// the extension processes asynchronously, so assertions poll with retries.
+func runLifecycle(ctx context.Context, call func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
+	fmt.Println("=== session lifecycle (agent HTTP -> repo-extension workspace) ===")
+
+	agentBase := "http://agent.zergx.svc.cluster.local"
+	org := fmt.Sprintf("e2elf%d", time.Now().UnixNano()%1_000_000)
+	post := func(path, body string) (int, string) {
+		req, err := httpNew("POST", agentBase+path, body)
+		if err != nil {
+			return 0, err.Error()
+		}
+		resp, err := httpDo(req)
+		if err != nil {
+			return 0, err.Error()
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+	branches := func(branch string) string {
+		r, err := call("", "repo", "git-branches", map[string]interface{}{
+			"_org": org, "_repo": "api", "_branch": branch,
+		})
+		if err != nil {
+			return ""
+		}
+		return content(r)
+	}
+	waitBranches := func(want, notWant string) string {
+		for i := 0; i < 10; i++ {
+			got := branches("main")
+			hasWant := want == "" || strings.Contains(got, want)
+			hasNot := notWant != "" && strings.Contains(got, notWant)
+			if hasWant && !hasNot {
+				return got
+			}
+			time.Sleep(time.Second)
+		}
+		return branches("main")
+	}
+
+	s1 := org + ":api:main"
+	code, body := post("/api/v1/sessions", `{"name":"`+s1+`"}`)
+	check("lifecycle.create session", code == 200, fmt.Sprintf("code=%d body=%s", code, body))
+	got := waitBranches("main", "")
+	check("lifecycle.created anchors main bookmark", strings.Contains(got, "main"), fmt.Sprintf("branches=%q", got))
+
+	fork := org + ":api:dev"
+	code, body = post("/api/v1/sessions/"+s1+"/fork", `{"name":"`+fork+`"}`)
+	check("lifecycle.fork session", code == 200, fmt.Sprintf("code=%d body=%s", code, body))
+	got = waitBranches("dev", "")
+	check("lifecycle.forked inherits bookmark", strings.Contains(got, "main") && strings.Contains(got, "dev"), fmt.Sprintf("branches=%q", got))
+
+	renamed := org + ":api:feat"
+	code, body = post("/api/v1/sessions/"+fork+"/rename", `{"name":"`+renamed+`"}`)
+	check("lifecycle.rename session", code == 200, fmt.Sprintf("code=%d body=%s", code, body))
+	got = waitBranches("feat", "dev")
+	check("lifecycle.renamed dual-moves bookmark", strings.Contains(got, "feat") && !strings.Contains(got, "dev"), fmt.Sprintf("branches=%q", got))
+
+	req, _ := httpNew("DELETE", agentBase+"/api/v1/sessions/"+renamed, "")
+	resp, err := httpDo(req)
+	dbody := ""
+	if err == nil {
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		dbody = string(b)
+		code = resp.StatusCode
+	} else {
+		code = 0
+	}
+	check("lifecycle.delete session", code == 200, fmt.Sprintf("code=%d body=%s err=%v", code, dbody, err))
+	got = waitBranches("", "feat")
+	check("lifecycle.deleted removes bookmark", !strings.Contains(got, "feat") && strings.Contains(got, "main"), fmt.Sprintf("branches=%q", got))
+
+	// cleanup: drop the remaining sessions (workspace org stays in jjlab as
+	// an e2e artifact, like the pre-existing test/dbg1 org).
+	for _, sid := range []string{s1} {
+		req, _ := httpNew("DELETE", agentBase+"/api/v1/sessions/"+sid, "")
+		if r, err := httpDo(req); err == nil {
+			r.Body.Close()
+		}
 	}
 }
 
