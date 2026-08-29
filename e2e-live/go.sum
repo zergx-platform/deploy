@@ -1,5 +1,5 @@
-forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go v0.1.0 h1:9vddEtN8SZmBZlQXkj1iaOi6VL7oukwqt/PX8mMntf8=
-forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go v0.1.0/go.mod h1:O3QPxUQfGXOJzO5pjLTu10Qj7A+U/rfrnP0nkGTqy0I=
+forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go v0.1.1 h1:GMKYIYMpukRauhBvzwO84mLjXNIRr9jPKNx/OrOvmMc=
+forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go v0.1.1/go.mod h1:O3QPxUQfGXOJzO5pjLTu10Qj7A+U/rfrnP0nkGTqy0I=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
