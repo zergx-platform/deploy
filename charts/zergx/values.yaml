@@ -10,6 +10,10 @@ imagePullPolicy: Always
 # Host path on the single cluster node where infra data lives. Must exist (or
 # be creatable) on the node. Each infra service stores under
 # <hostPathRoot>/<service-name>.
+# hostPathRoot: per-service host data dirs (<root>/<name>). Empty string =
+# ephemeral mode: every infra/app volume becomes an emptyDir, so a pod (or
+# node) restart wipes ALL state (postgres, nats, buildkit cache, artifact
+# storage, repos) — a clean-slate dev environment by design.
 hostPathRoot: /home/develop/ZergX
 
 # Internal service hostnames. When infra.<x>.enabled is true, the chart deploys
@@ -42,6 +46,10 @@ infra:
         memory: 4Gi
   buildkitd:
     enabled: true
+    # Extra docker.io pull-through mirrors (in-cluster, plain HTTP). For a
+    # dev deployment with an empty own artifact, point at the main release's
+    # artifact so base images (node/golang/alpine) still resolve.
+    extraMirrors: []
     image: artifact.zergx.svc.cluster.local/moby/buildkit:v0.32.2-rootless
     storage: 100Gi
     # Build cache + content store persist on the node under

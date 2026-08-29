@@ -1,0 +1,38 @@
+# Development overlay for an isolated zergx copy (release: zergx-dev, ns: temp).
+#
+# Isolation model:
+#   - hostPathRoot "": ephemeral — every volume is an emptyDir, so a pod/node
+#     restart wipes ALL state (postgres, nats, buildkit cache, artifact
+#     storage, repos). Clean slate by design.
+#   - runtimeNamespace temp: sandbox/deployment tools act inside temp itself
+#     (RBAC is release-namespaced; temp-user has no rights in zergxd and the
+#     main release's sandboxes live there).
+#   - Own infra (nats/postgres/selenium/jjlab/artifact/buildkitd) — the abc.*
+#     bus, the databases and the jj workspaces are fully separate from the
+#     zergx namespace.
+#
+# Shared, read-only:
+#   - Service images: pinned to the CURRENT live tags (same versioned images
+#     as the zergx namespace runs).
+#   - Live artifact as a buildkit docker.io mirror: base images resolve
+#     through it until the dev artifact warms up.
+#   - Sandbox worker image: pulled from the live registry (k8s.workerImage
+#     default stays absolute).
+#
+# Deploy:
+#   helm --kube-context temp -n temp upgrade --install zergx-dev \
+#     charts/zergx -f charts/zergx-dev-values.yaml
+
+hostPathRoot: ""
+
+k8s:
+  runtimeNamespace: temp
+
+builder:
+  # builds in the dev copy push into ITS OWN (ephemeral) artifact registry
+  registry: artifact.temp.svc.cluster.local
+
+infra:
+  buildkitd:
+    extraMirrors:
+      - artifact.zergx.svc.cluster.local:80

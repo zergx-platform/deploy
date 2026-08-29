@@ -28,10 +28,23 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-const natsURL = "nats://nats.zergx.svc.cluster.local:4222"
-const pgDSN = "postgres://root:devpassword@postgres.zergx.svc.cluster.local:5432/zergx_agent"
-const jjBase = "http://jjlab.zergx.svc.cluster.local/api/v1"
-const opsBase = "http://ops-extension.zergx.svc.cluster.local/api/v1"
+// Target stack. Defaults point at the main zergx namespace; override with
+// ABC_E2E_* env vars to run against another deployment (e.g. the zergx-dev
+// copy in temp).
+var (
+	natsURL  = envOr("ABC_E2E_NATS", "nats://nats.zergx.svc.cluster.local:4222")
+	pgDSN    = envOr("ABC_E2E_PG", "postgres://root:devpassword@postgres.zergx.svc.cluster.local:5432/zergx_agent")
+	jjBase   = envOr("ABC_E2E_JJ", "http://jjlab.zergx.svc.cluster.local/api/v1")
+	opsBase  = envOr("ABC_E2E_OPS", "http://ops-extension.zergx.svc.cluster.local/api/v1")
+	agentURL = envOr("ABC_E2E_AGENT", "http://agent.zergx.svc.cluster.local")
+)
+
+func envOr(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
 
 var passed, failed int
 
@@ -112,7 +125,7 @@ func main() {
 func runLifecycle(ctx context.Context, call func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
 	fmt.Println("=== session lifecycle (agent HTTP -> repo-extension workspace) ===")
 
-	agentBase := "http://agent.zergx.svc.cluster.local"
+	agentBase := agentURL
 	org := fmt.Sprintf("e2elf%d", time.Now().UnixNano()%1_000_000)
 	post := func(path, body string) (int, string) {
 		req, err := httpNew("POST", agentBase+path, body)
@@ -298,7 +311,7 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 
 	// explore
 	r, err = call("", "repo", "explore", map[string]interface{}{})
-	check("repo.explore", err == nil && strings.Contains(content(r), "e2e"), fmt.Sprintf("err=%v content=%q", err, content(r)))
+	check("repo.explore", err == nil && strings.Contains(content(r), o), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// git-show: rev = write change_id
 	r, err = call("", "repo", "git-show", map[string]interface{}{
@@ -434,7 +447,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	// lifecycle): the section's build tools resolve from this session.
 	sorg := fmt.Sprintf("e2o%d", time.Now().UnixNano()%1_000_000)
 	sid = sorg + ":smoke:main"
-	if req, e := httpNew("POST", "http://agent.zergx.svc.cluster.local/api/v1/sessions", `{"name":"`+sid+`"}`); e == nil {
+	if req, e := httpNew("POST", agentURL+"/api/v1/sessions", `{"name":"`+sid+`"}`); e == nil {
 		if resp, e := httpDo(req); e == nil {
 			resp.Body.Close()
 		}
@@ -464,7 +477,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 
 	// container-deploy: image must be the fully-qualified reference
 	// ({registry}/{tag}:{bookmark}) so the deployment's pods can pull it.
-	fullImage := "artifact.zergx.svc.cluster.local/" + imgTag + ":main"
+	fullImage := envOr("ABC_E2E_REGISTRY", "artifact.zergx.svc.cluster.local") + "/" + imgTag + ":main"
 	r, err = call(sid, "ops", "container-deploy", map[string]interface{}{
 		"image": fullImage, "name": runTag,
 	})
@@ -514,7 +527,7 @@ func runProgressInterrupt(ctx context.Context, ag *agent.Agent, call, callLong f
 	// self-bootstrap a workspace for this build (lifecycle-anchored main)
 	porg := fmt.Sprintf("e2p%d", time.Now().UnixNano()%1_000_000)
 	psid := porg + ":prog:main"
-	if req, e := httpNew("POST", "http://agent.zergx.svc.cluster.local/api/v1/sessions", `{"name":"`+psid+`"}`); e == nil {
+	if req, e := httpNew("POST", agentURL+"/api/v1/sessions", `{"name":"`+psid+`"}`); e == nil {
 		if resp, e := httpDo(req); e == nil {
 			resp.Body.Close()
 		}
@@ -673,7 +686,7 @@ func runIdempotency(ctx context.Context, nb bus.Bus) {
 // for any surviving org:repo:bookmark session, so deleting the repo alone
 // never sticks.
 func cleanupWorkspace(sid, org string) {
-	if req, e := httpNew("DELETE", "http://agent.zergx.svc.cluster.local/api/v1/sessions/"+sid, ""); e == nil {
+	if req, e := httpNew("DELETE", agentURL+"/api/v1/sessions/"+sid, ""); e == nil {
 		if resp, e := httpDo(req); e == nil {
 			resp.Body.Close()
 		}

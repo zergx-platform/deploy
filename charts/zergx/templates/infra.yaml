@@ -71,9 +71,14 @@ spec:
               mountPath: /docker-entrypoint-initdb.d
       volumes:
         - name: data
+          {{- if .Values.hostPathRoot }}
           hostPath:
             path: {{ .Values.hostPathRoot }}/postgres
             type: DirectoryOrCreate
+          {{- else }}
+          # ephemeral mode (hostPathRoot ""): emptyDir, wiped on restart
+          emptyDir: {}
+          {{- end }}
         - name: initdb
           configMap:
             name: postgres-init
@@ -149,9 +154,13 @@ spec:
               mountPath: /data
       volumes:
         - name: data
+          {{- if .Values.hostPathRoot }}
           hostPath:
             path: {{ .Values.hostPathRoot }}/nats
             type: DirectoryOrCreate
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
 {{- end }}
 
 {{- if .Values.infra.selenium.enabled }}
@@ -314,9 +323,13 @@ spec:
         # chart upgrades. Single-node hostPath, same pattern as the other
         # infra services.
         - name: buildkit-data
+          {{- if .Values.hostPathRoot }}
           hostPath:
             path: {{ .Values.hostPathRoot }}/buildkit
             type: DirectoryOrCreate
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -330,7 +343,12 @@ data:
     # plain HTTP on the in-cluster service host — no TLS/egress to docker.io
     # needed from buildkitd itself.
     [registry."docker.io"]
-      mirrors = ["{{ include "zergx.fullname" (dict "Chart" $.Chart "Release" $.Release "name" "artifact") }}.{{ $.Release.Namespace }}.svc.cluster.local:80"]
+      mirrors = ["{{ include "zergx.fullname" (dict "Chart" $.Chart "Release" $.Release "name" "artifact") }}.{{ $.Release.Namespace }}.svc.cluster.local:80"{{- range $.Values.infra.buildkitd.extraMirrors }}, "{{ . }}"{{- end }}]
+{{- range $.Values.infra.buildkitd.extraMirrors }}
+    [registry."{{ . }}"]
+      http = true
+      insecure = true
+{{- end }}
 
     [registry."{{ include "zergx.fullname" (dict "Chart" $.Chart "Release" $.Release "name" "artifact") }}.{{ $.Release.Namespace }}.svc.cluster.local:80"]
       http = true

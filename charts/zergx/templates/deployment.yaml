@@ -123,20 +123,32 @@ spec:
       {{- if eq $name "jjlab" }}
       volumes:
         - name: repos
+          {{- if $.Values.hostPathRoot }}
           hostPath:
             path: {{ $.Values.hostPathRoot }}/zergx-repos
             type: DirectoryOrCreate
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
         - name: data
+          {{- if $.Values.hostPathRoot }}
           hostPath:
             path: {{ $.Values.hostPathRoot }}/zergx-data
             type: DirectoryOrCreate
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
       {{- end }}
       {{- if eq $name "artifact" }}
       volumes:
         - name: artifact-data
+          {{- if $.Values.hostPathRoot }}
           hostPath:
             path: {{ $.Values.hostPathRoot }}/zergx-artifact
             type: DirectoryOrCreate
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
         - name: tmp
           emptyDir: {}
       {{- end }}
