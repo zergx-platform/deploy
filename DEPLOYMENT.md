@@ -8,7 +8,7 @@
 
 ## 0. 项目总览：语言与服务清单
 
-| 服务 | 源码目录 | 语言 | 镜像名（`zergx-artifact.temp.10.199.64.20.nip.io/...`） | 角色 |
+| 服务 | 源码目录 | 语言 | 镜像名（`artifact.zergx.10.199.64.20.nip.io/...`） | 角色 |
 |---|---|---|---|---|
 | agent | `agent-ts/` | TypeScript（Vercel AI SDK） | `zergx-agent-ts:v0.0.1` | 中枢 agent |
 | artifact | `artifact/` | Go | `go-registry@<sha256>`（**digest 固定**） | 包/O CI registry（自托管） |
@@ -19,8 +19,8 @@
 | wdbidi-extension | `wdbidi-extension/` | Go | `zergx-wdbidi-extension:v0.0.1` | 浏览器工具（WebDriver BiDi） |
 | worker-go | `worker-go/` | Go | `zergx-worker:v0.0.1` | 沙箱 worker（session 内 pod） |
 | gateway-go | `gateway-go/` | Go（内嵌 SPA） | `zergx-gateway-go:v0.0.1` | 聚合网关 |
-| abep-sdk-go | `abep-sdk-go/` | Go module | `abep.dev/sdk@v0.x.y` | Go 扩展 SDK |
-| abep-sdk-ts | `abep-sdk-ts/` | TypeScript | `abep-sdk@0.x.y` | TS 扩展 SDK |
+| abc sdk-go | `abc-protocol/sdk-go`（forgejo repo） | Go module | `forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go@v0.x.y` | Go 扩展 SDK（源码在 abc-protocol 单仓） |
+| abc sdk-ts | `abc-protocol/sdk-ts`（forgejo repo） | TypeScript | `@abc-protocol/sdk@0.x.y` | TS 扩展 SDK（NATS transport 并入核心包） |
 
 **基础设施镜像**（由 chart 拉取，非本仓库构建）：`postgres:18-alpine3.24`、`nats:2.14.5-alpine`、
 `selenium/standalone-chromium:151.0`、`moby/buildkit:v0.32.2-rootless`。
@@ -30,11 +30,11 @@
 | 项 | 值 |
 |---|---|
 | Git 远端（统一 forgejo） | `https://forgejo.develop.10.199.64.20.nip.io/zergx/<repo>.git` |
-| OCI/包 registry | `zergx-artifact.temp.10.199.64.20.nip.io`（svc 内 `zergx-artifact.temp.svc.cluster.local`） |
-| Go module registry（GOPROXY） | `http://zergx-artifact.temp.svc.cluster.local/pkgs/go` |
-| npm registry | `http://zergx-artifact.temp.svc.cluster.local/pkgs/npm/` |
-| jjlab | `http://jjlab.temp.svc.cluster.local` |
-| ops-extension 构建接口 | `http://zergx-ops-extension.temp.svc.cluster.local/api/v1/images/build` |
+| OCI/包 registry | `artifact.zergx.10.199.64.20.nip.io`（svc 内 `artifact.zergx.svc.cluster.local`） |
+| Go module registry（GOPROXY） | `http://artifact.zergx.svc.cluster.local/pkgs/go` |
+| npm registry | `http://artifact.zergx.svc.cluster.local/pkgs/npm/` |
+| jjlab | `http://jjlab.zergx.svc.cluster.local` |
+| ops-extension 构建接口 | `http://ops-extension.zergx.svc.cluster.local/api/v1/images/build` |
 | buildkitd | `tcp://zergx-buildkitd.temp.svc.cluster.local:1234` |
 | 构建源码事实源 | jjlab `build` org（每 repo 有 `master`/`dev` bookmark） |
 
@@ -44,7 +44,7 @@
 
 提交前必须过对应语言的检查。**没有统一的 `make gate`** —— 各语言各用各的：
 
-### TypeScript 项目（agent-ts / abep-sdk-ts）
+### TypeScript 项目（agent-ts）
 
 ```bash
 # agent-ts（monorepo：schema/agent/server/ui）
@@ -54,11 +54,9 @@ npx biome check .        # lint + 格式
 npx vitest run           # 单元测试（12 文件，55+ 用例）
 npm run build            # 完整构建（含 SEA 单二进制）
 
-# abep-sdk-ts
-cd abep-sdk-ts && npm run build   # tsc --noEmit
 ```
 
-### Go 项目（artifact / 各 extension / gateway / worker / abep-sdk-go）
+### Go 项目（各 extension / gateway / worker；SDK 门禁在 abc-protocol 仓跑）
 
 ```bash
 cd <service>
@@ -114,31 +112,33 @@ helm 部署（第 7 节）
 
 两个 SDK 都必须发布到 artifact，**不允许**直接依赖本地路径或 forgejo 源码。
 
-### 3.1 abep-sdk-go（Go module → artifact `/pkgs/go`）
+### 3.1 abc sdk-go（Go module → forgejo tag + artifact `/pkgs/go` 镜像）
 
-Go module 的“注册表”天然是 git tag，但本项目的消费方统一走 artifact 的 GOPROXY 镜像。
-发布分两步：**git tag** + **module zip 上传 artifact**。
+模块路径 `forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go`，源码在
+abc-protocol 单仓（`sdk-go/`），发布为独立 forgejo repo
+`abc-protocol/sdk-go`。发布三步：**源码仓门禁 → 同步到发布仓 + git tag →
+module zip 上传 artifact 镜像**。
 
 ```bash
-cd abep-sdk-go
-
-# 1. 过门禁
+# 1. 源码仓门禁（/home/user/abc-protocol/sdk-go）
 go build ./... && go vet ./... && go test ./...
 
-# 2. 提交 + 打 tag（tag 版本号与 go.mod 消费方一致）
-git add -A
-git commit -m "feat: ..."
-git tag v0.2.8                 # 新版本号（每次递增）
-git push origin master
-git push origin v0.2.8
+# 2. 同步到发布仓并打 tag
+rm -rf /tmp/sdk-go-publish && cp -r abc-protocol/sdk-go /tmp/sdk-go-publish
+cd /tmp/sdk-go-publish && rm -rf .git
+git init -q -b main && git add -A
+git -c user.name=root -c user.email=root@dev-home.local commit -qm "abc sdk-go v0.1.x"
+git remote add origin https://root:<token>@forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go.git
+git push -q origin main && git tag v0.1.x && git push -q origin v0.1.x
 
-# 3. 打包 module zip 并 PUT 到 artifact go upload 端点
-VER=v0.2.8
-NAME=abep.dev/sdk
+# 3. 打包 module zip 并 PUT 到 artifact go upload 端点（消费方 GOPRIVATE
+#    未覆盖 forgejo 域时走 GOPROXY 镜像；zip 与 tag 缺一不可）
+VER=v0.1.x
+NAME=forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go
 python3 - <<EOF
 import io, os, urllib.parse, urllib.request, zipfile
 name, ver = "$NAME", "$VER"
-base = "http://zergx-artifact.temp.svc.cluster.local"
+base = "http://artifact.zergx.svc.cluster.local"
 buf = io.BytesIO()
 with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
     for root, dirs, files in os.walk("."):
@@ -153,63 +153,59 @@ EOF
 # 期望输出：{"ok":true}
 ```
 
-> **关键点**：tag 必须先推到 forgejo。`go mod download` 会用 tag 校验版本存在性；
-> 只传 zip 不打 tag，消费方会报 `invalid version: unknown revision v0.2.8`。
+> **关键点**：tag 必须先推到 forgejo（`go mod download` 用 tag 校验版本）；
+> GOPRIVATE=forgejo.develop... 已全局配置时，go 直接走 forgejo git，
+> artifact zip 是无 GOPRIVATE 环境（如沙箱构建）的兜底镜像。
 
-### 3.2 abep-sdk-ts（npm → artifact `/pkgs/npm`）
+### 3.2 abc sdk-ts（npm → forgejo npm registry + artifact 镜像）
+
+包名 `@abc-protocol/sdk`（单包：原 abep-sdk / abep-sdk-nats 合并，NATS
+transport 并入核心）。发布两端：forgejo npm registry（权威源）+ artifact
+npm 镜像（默认 registry 兜底）。
 
 ```bash
-cd abep-sdk-ts/packages/abep-sdk      # 或 packages/abep-sdk-nats
+cd abc-protocol/sdk-ts/packages/sdk
 
-# 1. 过门禁
-npm run build          # tsc --noEmit
+# 1. 过门禁（单仓内）
+npm run check && npm test
 
-# 2. bump 版本（npm 不允许覆盖已发布版本）
-#    package.json: "version": "0.2.3" → "0.2.4"
-#    abep-sdk-nats 里同名的 abep-sdk 依赖版本同步 bump
+# 2. bump 版本（package.json version；npm 不允许覆盖已发布版本）
 
-# 3. 提交 + push
-git add -A && git commit -m "chore: bump 0.2.4" && git push origin master
+# 3. 发布到 forgejo npm registry（org abc-protocol；scope 路由已在
+#    agent-ts/.npmrc 配好：@abc-protocol:registry=...）
+npm publish --access public \
+  --registry=https://forgejo.develop.10.199.64.20.nip.io/api/packages/abc-protocol/npm/
 
-# 4. 发布到 artifact npm（anonymous：需要一条 _authToken 配置绕过 npm 的 auth 前置检查）
-npm config set //zergx-artifact.temp.svc.cluster.local/pkgs/npm/:_authToken npm-anonymous --location=project
-npm publish --registry http://zergx-artifact.temp.svc.cluster.local/pkgs/npm/
-
-# 5. 清理临时 .npmrc 与 tgz（不要提交）
-rm -f .npmrc *.tgz
+# 4. 镜像发布到 artifact npm（无 scope 配置的消费方走默认 registry）
+npm publish --access public \
+  --registry=http://artifact.zergx.svc.cluster.local/pkgs/npm/
 ```
 
-> **注意**：npm 对已存在版本会 `You cannot publish over the previously published
-> versions`。每次必须 bump 版本号。
-> artifact 的 npm 端点是 anonymous（`authorizeWrite` 在 `auth==nil` 时放行），
-> 但 npm CLI 在 GET 404 时会先要求登录，所以需要 `_authToken` 假令牌让它继续。
-
----
+> 当前版本：`@abc-protocol/sdk@0.1.0`（TS/Go conformance + interop 双向通过）。
 
 ## 4. SDK 更新后，下游服务的 chore 更新
 
 SDK 发布后，所有依赖它的服务必须 bump 版本、重新过门禁、重新构建。
 
-### 4.1 Go 服务（依赖 abep-sdk-go：repo-extension / memory-extension / ops-extension / wdbidi-extension）
+### 4.1 Go 服务（依赖 abc sdk-go：repo-extension / memory-extension / ops-extension / wdbidi-extension）
 
 ```bash
 for d in repo-extension memory-extension ops-extension wdbidi-extension; do
   cd $d
   # 1. bump go.mod 里的版本
-  sed -i 's#abep.dev/sdk v0.2.7#abep.dev/sdk v0.2.8#' go.mod
-  sed -i 's#abep.dev/sdk/nats v0.2.1#abep.dev/sdk/nats v0.2.2#' go.mod
+  sed -i 's#abc-protocol/sdk-go v0.1.0#abc-protocol/sdk-go v0.1.1#' go.mod
 
   # 2. 用 artifact GOPROXY 重新解析 go.sum（必须 GOSUMDB=off，私有模块无公共 sumdb）
-  GOPROXY=http://zergx-artifact.temp.svc.cluster.local/pkgs/go \
+  GOPROXY=http://artifact.zergx.svc.cluster.local/pkgs/go \
   GOSUMDB=off GOFLAGS=-mod=mod \
-  go mod download abep.dev/sdk abep.dev/sdk/nats
+  go mod download forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go
 
   # 3. 过门禁
   go build ./... && go vet ./... && go test ./...
 
   # 4. 提交 + push
   git add go.mod go.sum
-  git commit -m "chore(deps): bump abep-sdk-go"
+  git commit -m "chore(deps): bump abc sdk-go"
   git push origin master
   cd ..
 done
@@ -228,7 +224,7 @@ done
 ```bash
 REPO=ops-extension   # 改成实际服务目录名（见第 0 节映射）
 ORG=build
-JJ=http://jjlab.temp.svc.cluster.local
+JJ=http://jjlab.zergx.svc.cluster.local
 
 # 1. 删除旧 repo（连续两次，防 jj init 残留目录竞态）
 curl -s -X DELETE "$JJ/api/v1/repos/$ORG/$REPO"
@@ -261,7 +257,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 用 ops-extension 的 `/images/build` 接口（**异步**：立即返回 `build_id`，后台构建）。
 
 ```bash
-OPS=http://zergx-ops-extension.temp.svc.cluster.local
+OPS=http://ops-extension.zergx.svc.cluster.local
 
 # repo 模式（标准路径）：从 jjlab 拉源码构建
 curl -s -X POST -H 'Content-Type: application/json' \
@@ -399,7 +395,7 @@ AGENT_BASE=http://zergx-agent.temp.svc.cluster.local bash scripts/smoke.sh
 
 # 4. registry 镜像 tag 可拉取
 curl -s -I -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
-  http://zergx-artifact.temp.svc.cluster.local/v2/<镜像名>/manifests/dev | head -1
+  http://artifact.zergx.svc.cluster.local/v2/<镜像名>/manifests/dev | head -1
 ```
 
 ---
@@ -431,7 +427,7 @@ go build ./... && go vet ./... && go test ./...        # 门禁
 git add -A && git commit -m "fix: ..." && git push origin master   # 提交
 
 # 同步 jjlab（第 5 节）
-JJ=http://jjlab.temp.svc.cluster.local
+JJ=http://jjlab.zergx.svc.cluster.local
 curl -s -X DELETE "$JJ/api/v1/repos/build/ops-extension"; sleep 2
 curl -s -X DELETE "$JJ/api/v1/repos/build/ops-extension"; sleep 2
 curl -s -X POST -H 'Content-Type: application/json' \
@@ -444,7 +440,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 # 构建（第 6 节）
 curl -s -X POST -H 'Content-Type: application/json' \
   -d '{"org":"build","repo":"ops-extension","bookmark":"dev","tag":"zergx-ops-extension","dockerfile":"Dockerfile","push":true,"no_cache":true}' \
-  http://zergx-ops-extension.temp.svc.cluster.local/api/v1/images/build
+  http://ops-extension.zergx.svc.cluster.local/api/v1/images/build
 # 轮询 build_id 到 done
 
 # 部署（第 7 节）
@@ -453,5 +449,5 @@ kubectl -n temp rollout status deployment/zergx-ops-extension --timeout=180s
 
 # 验证（第 8 节）
 curl -s -o /dev/null -w '%{http_code}\n' \
-  http://zergx-ops-extension.temp.svc.cluster.local/api/v1/health
+  http://ops-extension.zergx.svc.cluster.local/api/v1/health
 ```

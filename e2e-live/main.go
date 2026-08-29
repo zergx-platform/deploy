@@ -17,9 +17,8 @@ import (
 	"strings"
 	"time"
 
-	abep "abep.dev/sdk"
-	natsbus "abep.dev/sdk/nats"
-	"abep.dev/sdk/roleagent"
+	"forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go/agent"
+	natsbus "forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go/transport/nats"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -29,6 +28,13 @@ const jjBase = "http://jjlab.zergx.svc.cluster.local/api/v1"
 const opsBase = "http://ops-extension.zergx.svc.cluster.local/api/v1"
 
 var passed, failed int
+
+func content(res agent.ToolResult) string {
+	if res.Content == nil {
+		return ""
+	}
+	return *res.Content
+}
 
 func check(name string, ok bool, detail string) {
 	if ok {
@@ -47,20 +53,20 @@ func main() {
 		os.Exit(1)
 	}
 	defer bus.Close()
-	agent := abep.NewAgent(bus)
+	ag := agent.New(bus)
 	ctx := context.Background()
 
-	call := func(session, ext, tool string, args map[string]interface{}) (roleagent.ToolResult, error) {
+	call := func(session, ext, tool string, args map[string]interface{}) (agent.ToolResult, error) {
 		c, cancel := context.WithTimeout(ctx, 20*time.Second)
 		defer cancel()
-		return agent.CallTool(c, session, ext, tool, "e2e-"+tool, args)
+		return ag.CallTool(c, session, ext, tool, "e2e-"+tool, args)
 	}
 	// callLong is for heavy tools (image builds) whose synchronous await
 	// exceeds the default tool timeout.
-	callLong := func(session, ext, tool string, args map[string]interface{}) (roleagent.ToolResult, error) {
+	callLong := func(session, ext, tool string, args map[string]interface{}) (agent.ToolResult, error) {
 		c, cancel := context.WithTimeout(ctx, 180*time.Second)
 		defer cancel()
-		return agent.CallTool(c, session, ext, tool, "e2e-"+tool, args)
+		return ag.CallTool(c, session, ext, tool, "e2e-"+tool, args)
 	}
 
 	runMemory(ctx, call)
@@ -73,7 +79,7 @@ func main() {
 	}
 }
 
-func runMemory(ctx context.Context, call func(string, string, string, map[string]interface{}) (roleagent.ToolResult, error)) {
+func runMemory(ctx context.Context, call func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
 	fmt.Println("=== memory-extension (id=memory) ===")
 
 	// todowrite
@@ -82,7 +88,7 @@ func runMemory(ctx context.Context, call func(string, string, string, map[string
 			map[string]interface{}{"content": "live e2e", "status": "pending", "priority": "high"},
 		},
 	})
-	check("memory.todowrite", err == nil && strings.Contains(r.Content, "1"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("memory.todowrite", err == nil && strings.Contains(content(r), "1"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// history_search / history_range need a session with messages; seed PG directly.
 	db, err := sql.Open("pgx", pgDSN)
@@ -102,16 +108,16 @@ func runMemory(ctx context.Context, call func(string, string, string, map[string
 		"p1-"+sid, m1, `{"text":"hello from e2e keyword needle"}`, "p2-"+sid, m2, `{"text":"second message"}`)
 
 	r, err = call(sid, "memory", "history_search", map[string]interface{}{"query": "needle", "limit": 10})
-	check("memory.history_search", err == nil && strings.Contains(r.Content, "1"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("memory.history_search", err == nil && strings.Contains(content(r), "1"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "memory", "history_range", map[string]interface{}{"from": 0, "to": 1, "limit": 10})
-	check("memory.history_range", err == nil && strings.Contains(r.Content, "1"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("memory.history_range", err == nil && strings.Contains(content(r), "1"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	_, _ = db.Exec(`DELETE FROM sessions WHERE name=$1`, sid)
 	_, _ = db.Exec(`DELETE FROM todos WHERE session_id='e2e:smoke:main'`)
 }
 
-func runRepo(ctx context.Context, call func(string, string, string, map[string]interface{}) (roleagent.ToolResult, error)) {
+func runRepo(ctx context.Context, call func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
 	fmt.Println("=== repo-extension (id=repo) ===")
 	o, rp, bm := "e2e", "smoke", "main"
 
@@ -132,61 +138,61 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 	r, err := call("", "repo", "write", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "path": "e2e.txt", "content": "line one\nline two\nline three\n", "message": "e2e write",
 	})
-	check("repo.write", err == nil && strings.Contains(r.Content, "wrote file"), fmt.Sprintf("err=%v content=%q", err, r.Content))
-	meta := r.Metadata.(map[string]interface{})
+	check("repo.write", err == nil && strings.Contains(content(r), "wrote file"), fmt.Sprintf("err=%v content=%q", err, content(r)))
+	meta := r.Data.(map[string]interface{})
 	cidWrite, _ := meta["change_id"].(string)
 
 	// read
 	r, err = call("", "repo", "read", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "path": "e2e.txt",
 	})
-	check("repo.read", err == nil && strings.Contains(r.Content, "1: line one") && strings.Contains(r.Content, "3: line three"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.read", err == nil && strings.Contains(content(r), "1: line one") && strings.Contains(content(r), "3: line three"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// ls
 	r, err = call("", "repo", "ls", map[string]interface{}{"_org": o, "_repo": rp, "_branch": bm})
-	check("repo.ls", err == nil && strings.Contains(r.Content, "e2e.txt"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.ls", err == nil && strings.Contains(content(r), "e2e.txt"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// grep
 	r, err = call("", "repo", "grep", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "pattern": "line two",
 	})
-	check("repo.grep", err == nil && strings.Contains(r.Content, "line two"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.grep", err == nil && strings.Contains(content(r), "line two"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// edit
 	r, err = call("", "repo", "edit", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "path": "e2e.txt", "start_line": 2, "end_line": 2, "content": "line TWO edited\n", "message": "e2e edit",
 	})
-	check("repo.edit", err == nil && strings.Contains(r.Content, "edited file"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.edit", err == nil && strings.Contains(content(r), "edited file"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// read-after-edit
 	r, err = call("", "repo", "read", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "path": "e2e.txt",
 	})
-	check("repo.read-after-edit", err == nil && strings.Contains(r.Content, "2: line TWO edited"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.read-after-edit", err == nil && strings.Contains(content(r), "2: line TWO edited"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// git-log
 	r, err = call("", "repo", "git-log", map[string]interface{}{"_org": o, "_repo": rp, "_branch": bm})
-	check("repo.git-log", err == nil && strings.Contains(r.Content, "commit"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.git-log", err == nil && strings.Contains(content(r), "commit"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// git-branches
 	r, err = call("", "repo", "git-branches", map[string]interface{}{"_org": o, "_repo": rp, "_branch": bm})
-	check("repo.git-branches", err == nil && strings.Contains(r.Content, "main"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.git-branches", err == nil && strings.Contains(content(r), "main"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// explore
 	r, err = call("", "repo", "explore", map[string]interface{}{})
-	check("repo.explore", err == nil && strings.Contains(r.Content, "e2e"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.explore", err == nil && strings.Contains(content(r), "e2e"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// git-show: rev = write change_id
 	r, err = call("", "repo", "git-show", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "rev": cidWrite,
 	})
-	check("repo.git-show", err == nil && strings.Contains(r.Content, "e2e"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.git-show", err == nil && strings.Contains(content(r), "e2e"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// second write → second commit for diff
 	r, err = call("", "repo", "write", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "path": "e2e-v2.txt", "content": "v2\n", "message": "e2e v2",
 	})
-	meta2 := r.Metadata.(map[string]interface{})
+	meta2 := r.Data.(map[string]interface{})
 	cidV2, _ := meta2["change_id"].(string)
 	check("repo.write-2", err == nil && cidV2 != "", fmt.Sprintf("err=%v", err))
 
@@ -194,19 +200,19 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 	r, err = call("", "repo", "git-diff", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "rev_a": cidWrite, "rev_b": cidV2, "path": "e2e-v2.txt",
 	})
-	check("repo.git-diff", err == nil, fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.git-diff", err == nil, fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// git-blame
 	r, err = call("", "repo", "git-blame", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "rev": bm, "path": "e2e-v2.txt",
 	})
-	check("repo.git-blame", err == nil && strings.Contains(r.Content, "v2"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.git-blame", err == nil && strings.Contains(content(r), "v2"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// delete
 	r, err = call("", "repo", "delete", map[string]interface{}{
 		"_org": o, "_repo": rp, "_branch": bm, "path": "e2e.txt", "message": "e2e delete",
 	})
-	check("repo.delete", err == nil && strings.Contains(r.Content, "deleted file"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("repo.delete", err == nil && strings.Contains(content(r), "deleted file"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// cleanup repo
 	del := func(path string) {
@@ -221,7 +227,7 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 	del("/repos/e2e")
 }
 
-func runOps(ctx context.Context, call func(string, string, string, map[string]interface{}) (roleagent.ToolResult, error), callLong func(string, string, string, map[string]interface{}) (roleagent.ToolResult, error)) {
+func runOps(ctx context.Context, call func(string, string, string, map[string]interface{}) (agent.ToolResult, error), callLong func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
 	fmt.Println("=== ops-extension (id=ops) ===")
 	// Ops tools resolve the workspace from the session name
 	// (org:repo:bookmark). Establish the test/dbg1 repo + main bookmark first
@@ -249,56 +255,56 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	r, err := call(sid, "ops", "sandbox-write", map[string]interface{}{
 		"path": "e2e-ops.txt", "content": "line1\nline2\n",
 	})
-	check("ops.sandbox-write", err == nil && strings.Contains(r.Content, "Wrote"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.sandbox-write", err == nil && strings.Contains(content(r), "Wrote"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "sandbox-read", map[string]interface{}{"path": "e2e-ops.txt"})
-	check("ops.sandbox-read", err == nil && strings.Contains(r.Content, "line1") && strings.Contains(r.Content, "line2"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.sandbox-read", err == nil && strings.Contains(content(r), "line1") && strings.Contains(content(r), "line2"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "sandbox-edit", map[string]interface{}{
 		"path": "e2e-ops.txt", "start_line": 1, "end_line": 1, "content": "line1-EDITED",
 	})
-	check("ops.sandbox-edit", err == nil && strings.Contains(r.Content, "Edited"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.sandbox-edit", err == nil && strings.Contains(content(r), "Edited"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "sandbox-read", map[string]interface{}{"path": "e2e-ops.txt"})
-	check("ops.sandbox-read-after-edit", err == nil && strings.Contains(r.Content, "line1-EDITED") && !strings.Contains(r.Content, "\nline1\n"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.sandbox-read-after-edit", err == nil && strings.Contains(content(r), "line1-EDITED") && !strings.Contains(content(r), "\nline1\n"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// ---- sandbox-run (streamed job) ----
 	r, err = call(sid, "ops", "sandbox-run", map[string]interface{}{"command": "echo ops-e2e-hello"})
-	check("ops.sandbox-run", err == nil && strings.Contains(r.Content, "ops-e2e-hello"), fmt.Sprintf("err=%v content=%q", err, r.Content))
-	meta, _ := r.Metadata.(map[string]interface{})
+	check("ops.sandbox-run", err == nil && strings.Contains(content(r), "ops-e2e-hello"), fmt.Sprintf("err=%v content=%q", err, content(r)))
+	meta, _ := r.Data.(map[string]interface{})
 	jobID, _ := meta["job_id"].(string)
 
 	// ---- sandbox-job-list ----
 	r, err = call(sid, "ops", "sandbox-job-list", map[string]interface{}{})
-	check("ops.sandbox-job-list", err == nil && strings.Contains(r.Content, jobID), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.sandbox-job-list", err == nil && strings.Contains(content(r), jobID), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// ---- sandbox-job-output (job from sandbox-run) ----
 	r, err = call(sid, "ops", "sandbox-job-output", map[string]interface{}{"job_id": jobID})
-	check("ops.sandbox-job-output", err == nil && strings.Contains(r.Content, "ops-e2e-hello"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.sandbox-job-output", err == nil && strings.Contains(content(r), "ops-e2e-hello"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// ---- sandbox-port (sandbox file → repo) ----
 	r, err = call(sid, "ops", "sandbox-write", map[string]interface{}{
 		"path": "port-e2e.txt", "content": "ported-e2e-content\n",
 	})
-	check("ops.sandbox-write-port", err == nil, fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.sandbox-write-port", err == nil, fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "sandbox-port", map[string]interface{}{
 		"sandbox_path": "port-e2e.txt", "repo_path": "ported-e2e.txt", "message": "e2e port",
 	})
-	check("ops.sandbox-port", err == nil && strings.Contains(r.Content, "Ported"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.sandbox-port", err == nil && strings.Contains(content(r), "Ported"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// ---- stateless tools ----
 	r, err = call(sid, "ops", "list-containerfile-templates", map[string]interface{}{})
-	check("ops.list-containerfile-templates", err == nil && strings.Contains(r.Content, "cargo"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.list-containerfile-templates", err == nil && strings.Contains(content(r), "cargo"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "list-registry-packages", map[string]interface{}{})
-	check("ops.list-registry-packages", err == nil && strings.Contains(r.Content, "abep.dev/sdk"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.list-registry-packages", err == nil && strings.Contains(content(r), "abc-protocol/sdk-go"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "image-list", map[string]interface{}{})
-	check("ops.image-list", err == nil && strings.Contains(r.Content, "zergx-agent"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.image-list", err == nil && strings.Contains(content(r), "zergx-agent"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "helm-list", map[string]interface{}{})
-	check("ops.helm-list", err == nil, fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.helm-list", err == nil, fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// ---- heavy tools: container-build/deploy + helm lifecycle ----
 	// Unique per-run names so reruns never collide; cleaned up at the end.
@@ -313,12 +319,12 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 		"path": "Containerfile", "content": "FROM scratch\nCOPY Containerfile /e2e-ops-marker.txt\n",
 		"message": "e2e containerfile",
 	})
-	check("ops.containerfile-seed", err == nil && strings.Contains(r.Content, "wrote file"), fmt.Sprintf("err=%v", err))
+	check("ops.containerfile-seed", err == nil && strings.Contains(content(r), "wrote file"), fmt.Sprintf("err=%v", err))
 
 	r, err = callLong(sid, "ops", "container-build", map[string]interface{}{
 		"dockerfile_path": "Containerfile", "tag": imgTag,
 	})
-	check("ops.container-build", err == nil && strings.Contains(r.Content, "Finished build"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.container-build", err == nil && strings.Contains(content(r), "Finished build"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// container-deploy: image must be the fully-qualified reference
 	// ({registry}/{tag}:{bookmark}) so the deployment's pods can pull it.
@@ -326,7 +332,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	r, err = call(sid, "ops", "container-deploy", map[string]interface{}{
 		"image": fullImage, "name": runTag,
 	})
-	check("ops.container-deploy", err == nil && strings.Contains(r.Content, "Deployed"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.container-deploy", err == nil && strings.Contains(content(r), "Deployed"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// helm-install needs a real chart in the workspace. Write a minimal chart,
 	// install it, verify via status, then uninstall.
@@ -343,13 +349,13 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	r, err = call(sid, "ops", "helm-install", map[string]interface{}{
 		"release_name": releaseName, "chart_path": "e2e-chart",
 	})
-	check("ops.helm-install", err == nil && strings.Contains(r.Content, "Finished helm"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.helm-install", err == nil && strings.Contains(content(r), "Finished helm"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "helm-status", map[string]interface{}{"release_name": releaseName})
-	check("ops.helm-status", err == nil && strings.Contains(r.Content, releaseName), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.helm-status", err == nil && strings.Contains(content(r), releaseName), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "helm-uninstall", map[string]interface{}{"release_name": releaseName})
-	check("ops.helm-uninstall", err == nil && strings.Contains(r.Content, "Uninstalled"), fmt.Sprintf("err=%v content=%q", err, r.Content))
+	check("ops.helm-uninstall", err == nil && strings.Contains(content(r), "Uninstalled"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// cleanup: remove the deployed e2e deployment + service so reruns don't
 	// leave ImagePullBackOff corpses in zergxd.
