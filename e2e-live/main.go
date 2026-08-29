@@ -49,10 +49,7 @@ func envOr(k, def string) string {
 var passed, failed int
 
 func content(res agent.ToolResult) string {
-	if res.Content == nil {
-		return ""
-	}
-	return *res.Content
+	return res.Content
 }
 
 func check(name string, ok bool, detail string) {
@@ -621,8 +618,8 @@ func runOffload(ctx context.Context, ag *agent.Agent, call func(string, string, 
 		roundTrip := gerr == nil && data != nil && strings.Contains(string(data), "OFFLOAD-MARKER") && len(data) > 256*1024
 		check("offload.object roundtrip", roundTrip, fmt.Sprintf("err=%v size=%d", gerr, len(data)))
 	}
-	if r.Content != nil {
-		check("offload.content is a head", len(*r.Content) <= 500, fmt.Sprintf("len=%d", len(*r.Content)))
+	if r.Content != "" {
+		check("offload.content is a head", len(r.Content) <= 500, fmt.Sprintf("len=%d", len(r.Content)))
 	}
 }
 
