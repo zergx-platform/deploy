@@ -3,7 +3,7 @@ module e2e-live
 go 1.26
 
 require (
-	forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go v1.0.0
+	forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go v1.0.1
 	github.com/jackc/pgx/v5 v5.10.0
 )
 
