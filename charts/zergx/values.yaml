@@ -133,12 +133,12 @@ buildkitdResources:
     memory: 128Gi
 
 services:
-  ui:
+  gateway:
     enabled: true
     port: 80
     containerPort: 8080
     # Go aggregate API + streaming reverse proxy + embedded SPA.
-    image: artifact.zergx.svc.cluster.local/zergx-ui:v0.0.12
+    image: artifact.zergx.svc.cluster.local/zergx-gateway:v0.0.12
   artifact:
     enabled: true
     port: 80
@@ -202,7 +202,7 @@ repoManager:
 registryToken: ""
 registryAdminToken: "zergx_dev_admin"
 
-# gatewayGoToken is the fixed pre-shared token the gateway (zergx-ui) requires
+# gatewayGoToken is the fixed pre-shared token the gateway (zergx-gateway) requires
 # on every /api/v1/** request (Bearer). Set to a random value; empty disables
 # gateway auth (trusted-network only).
 gatewayGoToken: "5H7q_K940ySbgXng7H3nNWTTweGcjhGmFSJwJnTAQRw"
