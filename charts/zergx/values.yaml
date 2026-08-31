@@ -138,13 +138,13 @@ services:
     port: 80
     containerPort: 8080
     # Flutter web client recreating the gateway UI (nginx + built assets).
-    image: artifact.zergx.svc.cluster.local/zergx-flutter:v0.0.3
+    image: artifact.zergx.svc.cluster.local/zergx-flutter:v0.0.4
   gateway:
     enabled: true
     port: 80
     containerPort: 8080
     # Go aggregate API + streaming reverse proxy + embedded SPA.
-    image: artifact.zergx.svc.cluster.local/zergx-gateway:v0.0.14
+    image: artifact.zergx.svc.cluster.local/zergx-gateway:v0.0.15
   artifact:
     enabled: true
     port: 80
