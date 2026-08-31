@@ -137,14 +137,14 @@ services:
     enabled: true
     port: 80
     containerPort: 8080
-    # Flutter web client recreating the gateway UI (nginx + built assets).
+    # Flutter web client recreating the platform UI (nginx + built assets).
     image: artifact.zergx.svc.cluster.local/zergx-flutter:v0.0.8
-  gateway:
+  platform:
     enabled: true
     port: 80
     containerPort: 8080
     # Go aggregate API + streaming reverse proxy + embedded SPA.
-    image: artifact.zergx.svc.cluster.local/zergx-gateway:v0.0.15
+    image: artifact.zergx.svc.cluster.local/zergx-platform:v0.0.1
   artifact:
     enabled: true
     port: 80
@@ -208,10 +208,15 @@ repoManager:
 registryToken: ""
 registryAdminToken: "zergx_dev_admin"
 
-# gatewayGoToken is the fixed pre-shared token the gateway (zergx-gateway) requires
+# gatewayGoToken is the fixed pre-shared token the platform (zergx-platform) requires
 # on every /api/v1/** request (Bearer). Set to a random value; empty disables
-# gateway auth (trusted-network only).
+# platform auth (trusted-network only).
 gatewayGoToken: "5H7q_K940ySbgXng7H3nNWTTweGcjhGmFSJwJnTAQRw"
+
+# platformCredential is the single login credential (user:password) the
+# platform accepts at POST /api/v1/auth/login in exchange for a signed token.
+# Leave empty to disable login (gatewayGoToken-only auth).
+platformCredential: "root:devpassword"
 
 pullSecret:
   enabled: false

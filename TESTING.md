@@ -128,6 +128,6 @@ make gate
 | executor | 1 | ⬜ | — | ⬜ k8s | 待补 |
 | builder | 0 | ⬜ | — | ⬜ buildkit | 待补 |
 | worker | 3 | ⬜ | — | ⬜ job | 待补 |
-| gateway | 0 | ⬜ | — | ⬜ 路由 | 待补 |
+| platform | 0 | ⬜ | — | ⬜ 路由 | 待补 |
 
 ✅ 已达标 · ⬜ 缺失 · — 不适用（n/a）

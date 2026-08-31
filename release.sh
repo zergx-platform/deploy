@@ -27,7 +27,7 @@ NAMESPACE="${NAMESPACE:-zergx}"
 
 # service -> (chart key, jj repo, source image name, k8s deployment)
 declare -A SERVICES=(
-  [gateway]="gateway|zergx-gateway|zergx-gateway|gateway"
+  [platform]="platform|zergx-platform|zergx-platform|platform"
   [flutter]="flutter|zergx-flutter|zergx-flutter|flutter"
   [jjlab]="jjlab|jjlab|jjlab|jjlab"
   [repo-extension]="repo-extension|repo-extension|zergx-repo-extension|zergx-repo-extension"

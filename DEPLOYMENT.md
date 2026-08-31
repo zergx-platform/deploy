@@ -18,7 +18,7 @@
 | ops-extension | `ops-extension/` | Go（内嵌 Svelte SPA） | `zergx-ops-extension:v0.0.1` | 构建/发布/沙箱工具层 |
 | wdbidi-extension | `wdbidi-extension/` | Go | `zergx-wdbidi-extension:v0.0.1` | 浏览器工具（WebDriver BiDi） |
 | worker-go | `worker-go/` | Go | `zergx-worker:v0.0.1` | 沙箱 worker（session 内 pod） |
-| gateway-go | `gateway-go/` | Go（内嵌 SPA） | `zergx-gateway-go:v0.0.1` | 聚合网关 |
+| platform | `platform/` | Go（内嵌 SPA） | `zergx-platform:v0.0.1` | 聚合网关 |
 | abc sdk-go | `abc-protocol/sdk-go`（forgejo repo） | Go module | `forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go@v0.x.y` | Go 扩展 SDK（源码在 abc-protocol 单仓） |
 | abc sdk-ts | `abc-protocol/sdk-ts`（forgejo repo） | TypeScript | `@abc-protocol/sdk@0.x.y` | TS 扩展 SDK（NATS transport 并入核心包） |
 
@@ -56,7 +56,7 @@ npm run build            # 完整构建（含 SEA 单二进制）
 
 ```
 
-### Go 项目（各 extension / gateway / worker；SDK 门禁在 abc-protocol 仓跑）
+### Go 项目（各 extension / platform / worker；SDK 门禁在 abc-protocol 仓跑）
 
 ```bash
 cd <service>
@@ -306,7 +306,7 @@ curl -sN "$OPS/api/v1/builds/$BID/stream"
 | memory-extension | memory-extension | zergx-memory-extension |
 | ops-extension | ops-extension | zergx-ops-extension |
 | wdbidi-extension | wdbidi-extension | zergx-wdbidi-extension |
-| gateway-go | gateway-go | zergx-gateway-go |
+| platform | platform | zergx-platform |
 | artifact（go-registry） | go-registry | go-registry |
 
 > **artifact 特殊**：镜像用 **digest 固定**（`IfNotPresent` + 浮动 tag 会导致 kubelet
@@ -390,7 +390,7 @@ helm -n temp upgrade zergx charts/zergx
 ```bash
 for d in zergx-agent zergx-worker jjlab jjlab-extension \
          zergx-memory-tools zergx-ops-extension zergx-wdbidi-extension \
-         zergx-gateway; do
+         zergx-platform; do
   kubectl -n temp rollout restart deployment/$d
   kubectl -n temp rollout status deployment/$d --timeout=180s
 done
