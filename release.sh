@@ -20,9 +20,10 @@
 # rolled back (helm rollback + re-pointing the image tag to the older one).
 set -euo pipefail
 
-JJSERVER="${JJSERVER:-http://jjlab.zergx.svc.cluster.local}"
+JJSERVER="${JJSERVER:-http://jj-lab.temp.svc.cluster.local:80}"
 OPS="${OPS:-http://ops-extension.zergx.svc.cluster.local}"
 CHART_VALUES="$(cd "$(dirname "$0")" && pwd)/charts/zergx/values.yaml"
+REGISTRY="${REGISTRY:-artifact.temp.svc.cluster.local}"
 NAMESPACE="${NAMESPACE:-zergx}"
 
 # service -> (chart key, jj repo, source image name, k8s deployment)
@@ -80,15 +81,15 @@ for s in "${sel[@]}"; do
   # 1. bump chart (keep the previous version in a comment for easy rollback)
   python3 - "$CHART_VALUES" "$key" "$image" "$oldv" "$version" <<'PY'
 import re, sys
-path, key, image, oldv, version = sys.argv[1:6]
+path, key, image, oldv, version, host = sys.argv[1:7]
 s = open(path).read()
-newline = f"    image: artifact.zergx.svc.cluster.local/{image}:{version}"
-endpoint = f"    image: artifact.zergx.svc.cluster.local/{image}:{oldv}" if oldv else None
+newline = f"    image: {host}/{image}:{version}"
+endpoint = f"    image: {host}/{image}:{oldv}" if oldv else None
 if endpoint and endpoint in s:
     s = s.replace(endpoint, newline, 1)
 else:
     # fall back to any :vX.Y.Z tag for this image
-    pat = re.compile(rf"(    image: artifact.zergx.svc.cluster.local/{re.escape(image)}:)v[0-9.]+")
+    pat = re.compile(rf"(    image: {host}/{re.escape(image)}:)v[0-9.]+")
     s, n = pat.subn(lambda m: m.group(1) + version, s, count=1)
     if n == 0:
         sys.exit(f"image line not found for {image}")
@@ -100,13 +101,19 @@ PY
   #    today's master — a stale cached clone must never ship a bumped version
   #    carrying old code. jjlab's clone returns 409 CONFLICT for an existing
   #    repo, which `curl -f` would turn into a silent no-op (the prior bug).
+  # New jjlab API: repo create/delete then /clone with {url, branch}.
   curl -sf -X DELETE "$JJSERVER/api/v1/repos/build/$repo" >/dev/null 2>&1 || true
   curl -sf -X POST -H 'Content-Type: application/json' \
-    -d "{\"org\":\"build\",\"repo\":\"$repo\",\"git_url\":\"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/zergx/$repo.git\"}" \
-    "$JJSERVER/api/v1/repos/clone" >/dev/null
+    -d "{\"default_branch\":\"master\"}" \
+    "$JJSERVER/api/v1/repos/build/$repo" >/dev/null 2>&1 || true
   curl -sf -X POST -H 'Content-Type: application/json' \
-    -d '{"rev":"master","branch":"dev"}' \
-    "$JJSERVER/api/v1/repos/build/$repo/bookmarks" >/dev/null
+    -d "{\"url\":\"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/zergx/$repo.git\",\"branch\":\"master\"}" \
+    "$JJSERVER/api/v1/repos/build/$repo/clone" >/dev/null
+  # Move master -> dev bookmark (new API: POST /branches/{name} {target}).
+  devsha="$(curl -sf "$JJSERVER/api/v1/repos/build/$repo/branches" | python3 -c 'import sys,json; print(json.load(sys.stdin)["branches"][0]["sha"])')"
+  curl -sf -X POST -H 'Content-Type: application/json' \
+    -d "{\"target\":\"$devsha\"}" \
+    "$JJSERVER/api/v1/repos/build/$repo/branches/dev" >/dev/null
 
   # 3. build + push {image}:{version}
   bid="$(curl -sf -X POST -H 'Content-Type: application/json' \
