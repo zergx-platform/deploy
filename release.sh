@@ -79,7 +79,7 @@ for s in "${sel[@]}"; do
   echo "==> $s: ${old:-none} -> ${version}"
 
   # 1. bump chart (keep the previous version in a comment for easy rollback)
-  python3 - "$CHART_VALUES" "$key" "$image" "$oldv" "$version" <<'PY'
+  python3 - "$CHART_VALUES" "$key" "$image" "$oldv" "$version" "$REGISTRY" <<'PY'
 import re, sys
 path, key, image, oldv, version, host = sys.argv[1:7]
 s = open(path).read()
