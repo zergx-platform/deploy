@@ -146,7 +146,7 @@ services:
     # Go aggregate API + streaming reverse proxy + embedded SPA.
     image: artifact.temp.svc.cluster.local/zergx-platform:v0.0.9
   artifact:
-    enabled: true
+    enabled: false  # retired: registry is now http://artifact.temp.svc.cluster.local
     port: 80
     containerPort: 8080
     # Go artifact registry (language protocols + OCI), replacing the Rust
@@ -162,7 +162,7 @@ services:
     # sha256).
     image: artifact.temp.svc.cluster.local/go-registry@sha256:78574b905f9fc1c4ce6fc7209e2a04b817e5447836af2af04cf6d79ac73ba550
   jjlab:
-    enabled: true
+    enabled: false  # retired: jjlab is now http://jj-lab.temp.svc.cluster.local
     port: 80
     containerPort: 8080
     # Rust jj-lib native server (single static binary, no external git/jj).
