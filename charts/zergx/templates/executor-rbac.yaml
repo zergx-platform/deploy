@@ -1,7 +1,7 @@
-{{- /* ops-extension's own namespace (release namespace = zergx, the platform/
-       infrastructure namespace) only needs read access: all of its write
-       operations (sandboxes, deployments, helm releases) target k8s.runtimeNamespace
-       (zergxd, the develop environment). Write RBAC lives in runtime-rbac.yaml. */ -}}
+{{- /* ops-extension no longer touches the k8s API directly: every cluster
+       operation (sandboxes, deployments, helm) goes through jjlab's /ops
+       surface. The ServiceAccount is kept (deployment references it) but the
+       Roles are no longer mounted with cluster permissions. */ -}}
 {{- if (index .Values.services "ops-extension").enabled }}
 apiVersion: v1
 kind: ServiceAccount
@@ -9,44 +9,4 @@ metadata:
   name: ops-extension
   labels:
     {{- include "zergx.labels" (dict "Chart" .Chart "Release" .Release "name" "ops-extension") | nindent 4 }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: ops-extension
-  labels:
-    {{- include "zergx.labels" (dict "Chart" .Chart "Release" .Release "name" "ops-extension") | nindent 4 }}
-rules:
-  # Read-only in the platform namespace: ops-extension may inspect but never
-  # mutate zergx services.
-  - apiGroups: [""]
-    resources: ["pods", "pods/log", "events", "services", "secrets", "configmaps", "persistentvolumeclaims", "serviceaccounts"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["apps"]
-    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["batch"]
-    resources: ["jobs", "cronjobs"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["networking.k8s.io"]
-    resources: ["ingresses"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["rbac.authorization.k8s.io"]
-    resources: ["roles", "rolebindings"]
-    verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: ops-extension
-  labels:
-    {{- include "zergx.labels" (dict "Chart" .Chart "Release" .Release "name" "ops-extension") | nindent 4 }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: ops-extension
-subjects:
-  - kind: ServiceAccount
-    name: ops-extension
-    namespace: {{ .Release.Namespace }}
 {{- end }}

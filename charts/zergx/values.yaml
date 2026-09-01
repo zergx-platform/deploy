@@ -178,7 +178,7 @@ services:
     port: 80
     containerPort: 8080
     # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
-    image: artifact.zergx.svc.cluster.local/zergx-ops-extension:v0.0.20
+    image: artifact.zergx.svc.cluster.local/zergx-ops-extension:v0.0.22  # prev v0.0.21
   wdbidi-extension:
     enabled: true
     port: 80
@@ -204,6 +204,12 @@ builder:
 
 repoManager:
   reposRoot: /home/user/.zergx/repos
+
+# New jjlab (jj-lab) — the merged git-hosting + package-registry + ops server.
+# platform/repo-extension/ops-extension point at it via ZERGX_JJ_SERVER_URL.
+jjlab:
+  url: http://jj-lab.temp.svc.cluster.local:80
+  token: devtoken
 
 registryToken: ""
 registryAdminToken: "zergx_dev_admin"
