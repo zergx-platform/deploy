@@ -351,7 +351,7 @@ data:
       # target the public https host (kubelet pulls the same ref); buildctl's
       # docker config supplies the write credential. jjlab serves both hosts
       # from the same process.
-      [registry."{{ $.Values.jjlab.url }}"]
+      [registry."jj-lab.temp.svc.cluster.local"]
         http = true
         insecure = true
         {{- if .Values.jjlab.token }}
