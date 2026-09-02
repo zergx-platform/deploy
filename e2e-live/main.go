@@ -474,7 +474,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 
 	// container-deploy: image must be the fully-qualified reference
 	// ({registry}/{tag}:{bookmark}) so the deployment's pods can pull it.
-	fullImage := envOr("ABC_E2E_REGISTRY", "artifact.zergx.svc.cluster.local") + "/" + imgTag + ":main"
+	fullImage := envOr("ABC_E2E_REGISTRY", "jj-lab.temp.svc.cluster.local") + "/" + imgTag + ":main"
 	r, err = call(sid, "ops", "container-deploy", map[string]interface{}{
 		"image": fullImage, "name": runTag,
 	})
