@@ -339,20 +339,17 @@ metadata:
     {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd-config") | nindent 4 }}
 data:
   buildkitd.toml: |
-    # Pull docker.io images through the artifact OCI pull-through mirror over
+    # Pull docker.io images through the jjlab OCI pull-through mirror over
     # plain HTTP on the in-cluster service host — no TLS/egress to docker.io
-    # needed from buildkitd itself.
+    # needed from buildkitd itself. jjlab also serves the service images and
+    # the library/* base images (Dockerfiles reference ${REGISTRY}/library/*).
     [registry."docker.io"]
-      mirrors = ["{{ include "zergx.fullname" (dict "Chart" $.Chart "Release" $.Release "name" "artifact") }}.{{ $.Release.Namespace }}.svc.cluster.local:80"{{- range $.Values.infra.buildkitd.extraMirrors }}, "{{ . }}"{{- end }}]
+      mirrors = ["{{ $.Values.global.imageRegistry }}"]
 {{- range $.Values.infra.buildkitd.extraMirrors }}
     [registry."{{ . }}"]
       http = true
       insecure = true
 {{- end }}
-
-    [registry."{{ include "zergx.fullname" (dict "Chart" $.Chart "Release" $.Release "name" "artifact") }}.{{ $.Release.Namespace }}.svc.cluster.local:80"]
-      http = true
-      insecure = true
 
     [registry."{{ $.Values.global.imageRegistry }}"]
       http = true
