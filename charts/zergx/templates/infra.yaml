@@ -302,7 +302,7 @@ spec:
             - name: HTTPS_PROXY
               value: {{ $.Values.global.httpProxy | quote }}
             - name: NO_PROXY
-              value: "localhost,127.0.0.1,.svc.cluster.local,.svc,.nip.io"
+              value: "localhost,127.0.0.1,.svc.cluster.local,.svc"
           resources:
             {{- toYaml (default .Values.infraResources .Values.buildkitdResources) | nindent 12 }}
           ports:
@@ -314,9 +314,6 @@ spec:
               subPath: buildkitd.toml
             - name: buildkit-data
               mountPath: /var/lib/buildkit
-            - name: nipio-ca
-              mountPath: /usr/local/share/ca-certificates/nipio.crt
-              subPath: nipio.crt
       volumes:
         - name: buildkit-config
           configMap:
@@ -333,10 +330,6 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
-        - name: nipio-ca
-          configMap:
-            name: nipio-ca
-            optional: true
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -346,17 +339,15 @@ metadata:
     {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd-config") | nindent 4 }}
 data:
     buildkitd.toml: |
-      # Pull base images from the jjlab service (plain HTTP, no TLS) which
-      # pull-through-caches docker.io library/* images. Service image pushes
-      # target the public https host (kubelet pulls the same ref); buildctl's
-      # docker config supplies the write credential. jjlab serves both hosts
-      # from the same process.
+      # ALL internal registry traffic goes over the in-cluster service host on
+      # plain HTTP — no TLS, no nip.io. Base images (docker.io library/*) are
+      # pull-through-cached by jjlab; service image pushes target the same host.
+      [registry."docker.io"]
+        mirrors = ["jj-lab.temp.svc.cluster.local"]
       [registry."jj-lab.temp.svc.cluster.local"]
         http = true
         insecure = true
         {{- if .Values.jjlab.token }}
         auth = "{{ printf "x:%s" .Values.jjlab.token | b64enc }}"
         {{- end }}
-      [registry."{{ $.Values.global.imageRegistry }}"]
-        insecure = true
 {{- end }}
