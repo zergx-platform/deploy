@@ -314,6 +314,9 @@ spec:
               subPath: buildkitd.toml
             - name: buildkit-data
               mountPath: /var/lib/buildkit
+            - name: nipio-ca
+              mountPath: /usr/local/share/ca-certificates/nipio.crt
+              subPath: nipio.crt
       volumes:
         - name: buildkit-config
           configMap:
@@ -330,6 +333,10 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
+        - name: nipio-ca
+          configMap:
+            name: nipio-ca
+            optional: true
 ---
 apiVersion: v1
 kind: ConfigMap
