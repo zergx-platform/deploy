@@ -30,9 +30,9 @@ k8s:
 
 builder:
   # builds in the dev copy push into ITS OWN (ephemeral) artifact registry
-  registry: jj-lab.temp.svc.cluster.local
+  registry: jj-lab.temp.10.199.64.20.nip.io
 
 infra:
   buildkitd:
     extraMirrors:
-      - jj-lab.temp.svc.cluster.local
+      - jj-lab.temp.10.199.64.20.nip.io
