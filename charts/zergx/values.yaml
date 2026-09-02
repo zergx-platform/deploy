@@ -166,7 +166,7 @@ services:
     port: 80
     containerPort: 8080
     # Rust jj-lib native server (single static binary, no external git/jj).
-    image: jj-lab.temp.svc.cluster.local/root/jj-lab:v0.3.17-http2
+    image: jj-lab.temp.svc.cluster.local/root/jj-lab:v0.3.22
   repo-extension:
     enabled: true
     port: 80
@@ -178,7 +178,7 @@ services:
     port: 80
     containerPort: 8080
     # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
-    image: jj-lab.temp.svc.cluster.local/root/zergx-ops-extension:v0.0.23  # prev v0.0.21
+    image: jj-lab.temp.svc.cluster.local/root/zergx-ops-extension:v0.0.26  # prev v0.0.23
   wdbidi-extension:
     enabled: true
     port: 80

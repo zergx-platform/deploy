@@ -243,8 +243,7 @@ func runMemory(ctx context.Context, call func(string, string, string, map[string
 
 func runRepo(ctx context.Context, call func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
 	fmt.Println("=== repo-extension (id=repo) ===")
-	o := fmt.Sprintf("e2r%d", time.Now().UnixNano()%1_000_000)
-	rp, bm := "smoke", "main"
+	o, rp, bm := "build", "example", "main"
 
 	// ensure test repo
 	post := func(path string, body string) {
@@ -426,13 +425,13 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	check("ops.list-containerfile-templates", err == nil && strings.Contains(content(r), "cargo"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "list-registry-packages", map[string]interface{}{})
-	check("ops.list-registry-packages", err == nil && strings.Contains(content(r), "abc-protocol/sdk-go"), fmt.Sprintf("err=%v content=%q", err, content(r)))
+	check("ops.list-registry-packages", err == nil && strings.Contains(content(r), "abc-protocol-go"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "image-list", map[string]interface{}{})
 	check("ops.image-list", err == nil && strings.Contains(content(r), "zergx-agent"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "helm-list", map[string]interface{}{})
-	check("ops.helm-list", err == nil, fmt.Sprintf("err=%v content=%q", err, content(r)))
+	check("ops.helm-list", err == nil && r.Error == nil, fmt.Sprintf("err=%v in-band=%+v", err, r.Error))
 
 	// ---- heavy tools: container-build/deploy + helm lifecycle ----
 	// Unique per-run names so reruns never collide; cleaned up at the end.
@@ -456,7 +455,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	for i := 0; i < 12; i++ {
 		r, werr := call("", "repo", "write", map[string]interface{}{
 			"_org": sorg, "_repo": "smoke", "_branch": "main",
-			"path": "Containerfile", "content": "FROM scratch\nCOPY Containerfile /e2e-ops-marker.txt\n",
+			"path": "Containerfile", "content": "FROM library/busybox:1.36\nCOPY Containerfile /e2e-ops-marker.txt\nCMD [\"httpd\",\"-f\",\"-p\",\"8080\"]\n",
 			"message": "e2e containerfile",
 		})
 		if werr == nil && strings.Contains(content(r), "wrote file") {
@@ -533,7 +532,7 @@ func runProgressInterrupt(ctx context.Context, ag *agent.Agent, call, callLong f
 	for i := 0; i < 10; i++ {
 		r, werr := call("", "repo", "write", map[string]interface{}{
 			"_org": porg, "_repo": "prog", "_branch": "main",
-			"path": "Containerfile", "content": "FROM scratch\nCOPY Containerfile /e2e-marker.txt\n", "message": "prog seed",
+			"path": "Containerfile", "content": "FROM library/busybox:1.36\nCOPY Containerfile /e2e-marker.txt\nCMD [\"httpd\",\"-f\",\"-p\",\"8080\"]\n", "message": "prog seed",
 		})
 		if werr == nil && strings.Contains(content(r), "wrote file") {
 			seedOK = true
