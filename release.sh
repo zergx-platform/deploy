@@ -106,28 +106,20 @@ else:
 open(path, 'w').write(s)
 PY
 
-  # 2. Force-refresh the build org's copy of the GitHub repo: DELETE the
-  #    existing repo (idempotent) then clone, so the version bump ALWAYS builds
-  #    today.s main — a stale cached clone must never ship a bumped version
+  # 2. Force-refresh jjlab's copy of the GitHub repo under its real org/repo:
+  #    DELETE (idempotent) then clone, so the version bump ALWAYS builds
+  #    today's main — a stale cached clone must never ship a bumped version
   #    carrying old code. jjlab's clone returns 409 CONFLICT for an existing
   #    repo, which `curl -f` would turn into a silent no-op (the prior bug).
-  # New jjlab API: repo create/delete then /clone with {url, branch}.
-  curl -sf -X DELETE "$JJSERVER/api/v1/repos/build/$repo" >/dev/null 2>&1 || true
-  curl -sf -X POST -H 'Content-Type: application/json' \
-    -d "{\"default_branch\":\"main\"}" \
-    "$JJSERVER/api/v1/repos/build/$repo" >/dev/null 2>&1 || true
+  o2="$(cut -d/ -f1 <<<"$githrepo")"; r2="$(cut -d/ -f2 <<<"$githrepo")"
+  curl -sf -X DELETE "$JJSERVER/api/v1/repos/$o2/$r2" >/dev/null 2>&1 || true
   curl -sf -X POST -H 'Content-Type: application/json' \
     -d "{\"url\":\"https://$GIT_TOKEN@$GIT_HOST/$githrepo.git\",\"branch\":\"main\"}" \
-    "$JJSERVER/api/v1/repos/build/$repo/clone" >/dev/null
-  # Move main -> dev bookmark (new API: POST /branches/{name} {target}).
-  devsha="$(curl -sf "$JJSERVER/api/v1/repos/build/$repo/branches" | python3 -c 'import sys,json; print(json.load(sys.stdin)["branches"][0]["sha"])')"
-  curl -sf -X POST -H 'Content-Type: application/json' \
-    -d "{\"target\":\"$devsha\"}" \
-    "$JJSERVER/api/v1/repos/build/$repo/branches/dev" >/dev/null
+    "$JJSERVER/api/v1/repos/$o2/$r2/clone" >/dev/null
 
-  # 3. build + push {image}:{version}
+  # 3. build + push {image}:{version} straight from the real org/repo main.
   bid="$(curl -sf -X POST -H 'Content-Type: application/json' \
-    -d "{\"org\":\"build\",\"repo\":\"$repo\",\"bookmark\":\"dev\",\"tag\":\"$image\",\"image_tag\":\"$version\",\"dockerfile\":\"Dockerfile\",\"push\":true}" \
+    -d "{\"org\":\"$o2\",\"repo\":\"$r2\",\"bookmark\":\"main\",\"tag\":\"$image\",\"image_tag\":\"$version\",\"dockerfile\":\"Dockerfile\",\"push\":true}" \
     "$OPS/api/v1/images/build" | python3 -c 'import json,sys; print(json.load(sys.stdin)["build_id"])')"
 
   echo "    build_id=$bid — waiting…"
