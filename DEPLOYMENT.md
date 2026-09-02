@@ -36,7 +36,7 @@
 | jjlab | `http://jjlab.zergx.svc.cluster.local` |
 | ops-extension 构建接口 | `http://ops-extension.zergx.svc.cluster.local/api/v1/images/build` |
 | buildkitd | `tcp://zergx-buildkitd.temp.svc.cluster.local:1234` |
-| 构建源码事实源 | jjlab `build` org（每 repo 有 `master`/`dev` bookmark） |
+| 构建源码事实源 | jjlab `build` org（每 repo 有 `main`/`dev` bookmark） |
 
 ---
 
@@ -206,7 +206,7 @@ for d in repo-extension memory-extension ops-extension wdbidi-extension; do
   # 4. 提交 + push
   git add go.mod go.sum
   git commit -m "chore(deps): bump abc sdk-go"
-  git push origin master
+  git push origin main
   cd ..
 done
 ```
@@ -240,14 +240,14 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 # 3. 建/更新 dev bookmark（构建 tag 后缀 = bookmark 名）
 curl -s -X POST -H 'Content-Type: application/json' \
-  -d '{"rev":"master","branch":"dev"}' \
+  -d '{"rev":"main","branch":"dev"}' \
   "$JJ/api/v1/repos/$ORG/$REPO/bookmarks"
 ```
 
 > **关键**：
-> - 镜像 tag 由 `image_tag` 字段显式指定（版本化发版，`v0.0.x`）；`bookmark` 只决定源码版本（`dev` 始终跟踪 master）。
+> - 镜像 tag 由 `image_tag` 字段显式指定（版本化发版，`v0.0.x`）；`bookmark` 只决定源码版本（`dev` 始终跟踪 main）。
 >   发版走 `release.sh <major|minor|patch> <service...>`，自动 bump 版本 + 构建推送 `{image}:{version}`。
-> - clone 后 jj 只保留 forgejo 默认分支（`master`），所以必须再 `POST /repos/{org}/{repo}/bookmarks` 建 `dev`。
+> - clone 后 jj 只保留 forgejo 默认分支（`main`），所以必须再 `POST /repos/{org}/{repo}/bookmarks` 建 `dev`。
 > - `git_url` 不带 `root:devpassword@` 会 clone 失败（Gitea 自签证书 + 无凭据）。
 
 ---
@@ -433,7 +433,7 @@ curl -s -I -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
 | buildkit 无持久卷 | pod 重启后缓存全丢、每次全量重编 | chart 已挂 hostPath `<root>/buildkit`；勿再依赖 no_cache 防陈旧 |
 | 误用 no_cache | 每次从零编依赖树（jjlab ≈13min） | 默认不传 no_cache；仅在怀疑缓存损坏时传 |
 | clone 不带认证 | `could not read Username` | `git_url` 用 `root:devpassword@` |
-| clone 后无 dev bookmark | 构建推到 `:master` 而非 `:dev` | `POST /repos/{org}/{repo}/bookmarks` 建 `dev` |
+| clone 后无 dev bookmark | 构建推到 `:main` 而非 `:dev` | `POST /repos/{org}/{repo}/bookmarks` 建 `dev` |
 | go 私有模块 sumdb 校验 | `unknown revision` / sum 校验失败 | `GOSUMDB=off` + artifact GOPROXY |
 | npm 覆盖旧版本 | `cannot publish over previously published` | bump 版本号 |
 | npm publish 报 ENEEDAUTH | registry 匿名但 npm 前置登录 | 配 `_authToken` 假令牌 |
@@ -449,7 +449,7 @@ curl -s -I -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
 ```bash
 cd ops-extension
 go build ./... && go vet ./... && go test ./...        # 门禁
-git add -A && git commit -m "fix: ..." && git push origin master   # 提交
+git add -A && git commit -m "fix: ..." && git push origin main   # 提交
 
 # 同步 jjlab（第 5 节）
 JJ=http://jjlab.zergx.svc.cluster.local
@@ -459,7 +459,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
   -d '{"org":"build","repo":"ops-extension","git_url":"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/zergx/ops-extension.git"}' \
   "$JJ/api/v1/repos/clone"
 curl -s -X POST -H 'Content-Type: application/json' \
-  -d '{"rev":"master","branch":"dev"}' \
+  -d '{"rev":"main","branch":"dev"}' \
   "$JJ/api/v1/repos/build/ops-extension/bookmarks"
 
 # 构建（第 6 节）

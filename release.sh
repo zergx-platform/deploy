@@ -108,18 +108,18 @@ PY
 
   # 2. Force-refresh the build org's copy of the GitHub repo: DELETE the
   #    existing repo (idempotent) then clone, so the version bump ALWAYS builds
-  #    today's master — a stale cached clone must never ship a bumped version
+  #    today.s main — a stale cached clone must never ship a bumped version
   #    carrying old code. jjlab's clone returns 409 CONFLICT for an existing
   #    repo, which `curl -f` would turn into a silent no-op (the prior bug).
   # New jjlab API: repo create/delete then /clone with {url, branch}.
   curl -sf -X DELETE "$JJSERVER/api/v1/repos/build/$repo" >/dev/null 2>&1 || true
   curl -sf -X POST -H 'Content-Type: application/json' \
-    -d "{\"default_branch\":\"master\"}" \
+    -d "{\"default_branch\":\"main\"}" \
     "$JJSERVER/api/v1/repos/build/$repo" >/dev/null 2>&1 || true
   curl -sf -X POST -H 'Content-Type: application/json' \
-    -d "{\"url\":\"https://$GIT_TOKEN@$GIT_HOST/$githrepo.git\",\"branch\":\"master\"}" \
+    -d "{\"url\":\"https://$GIT_TOKEN@$GIT_HOST/$githrepo.git\",\"branch\":\"main\"}" \
     "$JJSERVER/api/v1/repos/build/$repo/clone" >/dev/null
-  # Move master -> dev bookmark (new API: POST /branches/{name} {target}).
+  # Move main -> dev bookmark (new API: POST /branches/{name} {target}).
   devsha="$(curl -sf "$JJSERVER/api/v1/repos/build/$repo/branches" | python3 -c 'import sys,json; print(json.load(sys.stdin)["branches"][0]["sha"])')"
   curl -sf -X POST -H 'Content-Type: application/json' \
     -d "{\"target\":\"$devsha\"}" \
