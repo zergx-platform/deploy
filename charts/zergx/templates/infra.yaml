@@ -339,13 +339,12 @@ metadata:
     {{- include "zergx.labels" (dict "Chart" $.Chart "Release" $.Release "name" "buildkitd-config") | nindent 4 }}
 data:
     buildkitd.toml: |
-      # Push + pull service/base images through the jjlab OCI registry (http,
-      # insecure over the in-cluster service host). It pull-through-caches
-      # docker.io library/* base images, so buildkit never hits docker.io.
-      # Pushed built images target ${REGISTRY}/root/<service>:<tag>; builds
-      # need a write token (basic auth x:<token>) to push to jjlab.
+      # Push + pull service/base images through the jjlab OCI registry over
+      # TLS on its public host (kubelet pulls the same ref, so build-push and
+      # pod-pull stay consistent). It pull-through-caches docker.io library/*
+      # base images, so buildkit never hits docker.io. Builds need a write
+      # token (basic auth x:<token>) to push to jjlab.
       [registry."{{ $.Values.global.imageRegistry }}"]
-        http = true
         insecure = true
         {{- if .Values.jjlab.token }}
         auth = "{{ printf "x:%s" .Values.jjlab.token | b64enc }}"
