@@ -23,20 +23,30 @@ set -euo pipefail
 JJSERVER="${JJSERVER:-http://jj-lab.temp.svc.cluster.local:80}"
 OPS="${OPS:-http://ops-extension.zergx.svc.cluster.local}"
 CHART_VALUES="$(cd "$(dirname "$0")" && pwd)/charts/zergx/values.yaml"
-REGISTRY="${REGISTRY:-artifact.temp.svc.cluster.local}"
+REGISTRY="${REGISTRY:-jj-lab.temp.svc.cluster.local}"
 NAMESPACE="${NAMESPACE:-zergx}"
+# Source code now lives on GitHub (mirrored from the old forgejo). Each service
+# is cloned into the jj-lab `build` org from its GitHub repo.
+GIT_HOST="${GIT_HOST:-github.com}"
+GIT_ORG="${GIT_ORG:-zergx-platform}"
+# GitHub token (fine-grained PAT) used by jjlab to clone the source repos.
+# Never commit a literal token; set GIT_TOKEN in the environment.
+GIT_TOKEN="${GIT_TOKEN:?set GIT_TOKEN to a GitHub PAT with repo read access}"
 
-# service -> (chart key, jj repo, source image name, k8s deployment)
+# service -> (chart key, jj-lab build repo, github repo full name, image name, k8s deployment)
+# GitHub is now the source-of-truth (mirrored from forgejo). jj-lab clones the
+# correct GitHub repo into its `build` org; the OCI image repo name stays the
+# historical service name (zergx-platform, zergx-agent, ...).
 declare -A SERVICES=(
-  [platform]="platform|zergx-platform|zergx-platform|platform"
-  [flutter]="flutter|zergx-flutter|zergx-flutter|flutter"
-  [jjlab]="jjlab|jjlab|jjlab|jjlab"
-  [repo-extension]="repo-extension|repo-extension|zergx-repo-extension|zergx-repo-extension"
-  [ops-extension]="ops-extension|ops-extension|zergx-ops-extension|zergx-ops-extension"
-  [wdbidi-extension]="wdbidi-extension|wdbidi-extension|zergx-wdbidi-extension|zergx-wdbidi-extension"
-  [agent]="agent|zergx-agent|zergx-agent|agent"
-  [memory]="memory-tools|memory-extension|zergx-memory-extension|zergx-memory-tools"
-  [worker]="worker|zergx-worker|zergx-worker|worker"
+  [platform]="platform|zergx|zergx-platform/zergx|zergx-platform|platform"
+  [flutter]="flutter|flutter-app|zergx-platform/flutter-app|zergx-flutter|flutter"
+  [jjlab]="jjlab|jjlab|jj-lab-platform/jj-lab|jj-lab|jjlab"
+  [repo-extension]="repo-extension|repo-extension|zergx-platform/repo-extension|zergx-repo-extension|zergx-repo-extension"
+  [ops-extension]="ops-extension|ops-extension|zergx-platform/ops-extension|zergx-ops-extension|zergx-ops-extension"
+  [wdbidi-extension]="wdbidi-extension|wdbidi-extension|zergx-platform/wdbidi-extension|zergx-wdbidi-extension|zergx-wdbidi-extension"
+  [agent]="agent|agent|zergx-platform/agent|zergx-agent|agent"
+  [memory]="memory-tools|memory-extension|zergx-platform/memory-extension|zergx-memory-extension|zergx-memory-tools"
+  [worker]="worker|worker|zergx-platform/worker|zergx-worker|worker"
 )
 
 bump="${1:?usage: release.sh <major|minor|patch> <service...|all>}"
@@ -65,7 +75,7 @@ bump_version() { # vX.Y.Z kind -> vX'.Y'.Z'
 }
 
 for s in "${sel[@]}"; do
-  IFS='|' read -r key repo image deployment <<< "${SERVICES[$s]}"
+  IFS='|' read -r key repo githrepo image deployment <<< "${SERVICES[$s]}"
 
   old="$(grep -E "image: .*${image}:" "$CHART_VALUES" | grep -oE "${image}:v[0-9.]+" | head -1)"
   if [[ -z "$old" ]]; then
@@ -96,7 +106,7 @@ else:
 open(path, 'w').write(s)
 PY
 
-  # 2. Force-refresh the build org's copy of the forgejo repo: DELETE the
+  # 2. Force-refresh the build org's copy of the GitHub repo: DELETE the
   #    existing repo (idempotent) then clone, so the version bump ALWAYS builds
   #    today's master — a stale cached clone must never ship a bumped version
   #    carrying old code. jjlab's clone returns 409 CONFLICT for an existing
@@ -107,7 +117,7 @@ PY
     -d "{\"default_branch\":\"master\"}" \
     "$JJSERVER/api/v1/repos/build/$repo" >/dev/null 2>&1 || true
   curl -sf -X POST -H 'Content-Type: application/json' \
-    -d "{\"url\":\"https://root:devpassword@forgejo.develop.10.199.64.20.nip.io/zergx/$repo.git\",\"branch\":\"master\"}" \
+    -d "{\"url\":\"https://$GIT_TOKEN@$GIT_HOST/$githrepo.git\",\"branch\":\"master\"}" \
     "$JJSERVER/api/v1/repos/build/$repo/clone" >/dev/null
   # Move master -> dev bookmark (new API: POST /branches/{name} {target}).
   devsha="$(curl -sf "$JJSERVER/api/v1/repos/build/$repo/branches" | python3 -c 'import sys,json; print(json.load(sys.stdin)["branches"][0]["sha"])')"
