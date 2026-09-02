@@ -22,9 +22,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go/agent"
-	"forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go/bus"
-	natsbus "forgejo.develop.10.199.64.20.nip.io/abc-protocol/sdk-go/transport/nats"
+	"github.com/abcp-sdk/abc-protocol-go/agent"
+	"github.com/abcp-sdk/abc-protocol-go/bus"
+	natsbus "github.com/abcp-sdk/abc-protocol-go/transport/nats"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -32,11 +32,11 @@ import (
 // ABC_E2E_* env vars to run against another deployment (e.g. the zergx-dev
 // copy in temp).
 var (
-	natsURL  = envOr("ABC_E2E_NATS", "nats://nats.zergx.svc.cluster.local:4222")
-	pgDSN    = envOr("ABC_E2E_PG", "postgres://root:devpassword@postgres.zergx.svc.cluster.local:5432/zergx_agent")
-	jjBase   = envOr("ABC_E2E_JJ", "http://jjlab.zergx.svc.cluster.local/api/v1")
-	opsBase  = envOr("ABC_E2E_OPS", "http://ops-extension.zergx.svc.cluster.local/api/v1")
-	agentURL = envOr("ABC_E2E_AGENT", "http://agent.zergx.svc.cluster.local")
+	natsURL  = envOr("ABC_E2E_NATS", "nats://nats.temp.svc.cluster.local:4222")
+	pgDSN    = envOr("ABC_E2E_PG", "postgres://root:devpassword@postgres.temp.svc.cluster.local:5432/zergx_agent")
+	jjBase   = envOr("ABC_E2E_JJ", "http://jj-lab.temp.svc.cluster.local/api/v1")
+	opsBase  = envOr("ABC_E2E_OPS", "http://ops-extension.temp.svc.cluster.local/api/v1")
+	agentURL = envOr("ABC_E2E_AGENT", "http://agent.temp.svc.cluster.local")
 )
 
 func envOr(k, def string) string {
