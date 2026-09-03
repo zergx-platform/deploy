@@ -144,7 +144,7 @@ services:
     port: 80
     containerPort: 8080
     # Go aggregate API + streaming reverse proxy + embedded SPA.
-    image: jj-lab.temp.svc.cluster.local/root/zergx-platform:v0.0.15
+    image: jj-lab.temp.svc.cluster.local/root/zergx-platform:v0.0.16
   artifact:
     enabled: false  # retired: registry is now http://jj-lab.temp.svc.cluster.local
     port: 80
@@ -191,7 +191,7 @@ services:
     containerPort: 8080
     # The agent is the TypeScript implementation (Vercel AI SDK); the Rust
     # agent has been removed.
-    image: jj-lab.temp.svc.cluster.local/root/zergx-agent:v0.0.17
+    image: jj-lab.temp.svc.cluster.local/root/zergx-agent:v0.0.18
   memory-tools:
     enabled: true
     port: 80
