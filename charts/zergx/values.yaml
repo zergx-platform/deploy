@@ -184,7 +184,7 @@ services:
     port: 80
     containerPort: 8080
     # Browser tools over WebDriver BiDi (selenium standalone).
-    image: jj-lab.temp.svc.cluster.local/root/zergx-wdbidi-extension:v0.0.11
+    image: jj-lab.temp.svc.cluster.local/root/zergx-wdbidi-extension:v0.0.13
   agent:
     enabled: true
     port: 80

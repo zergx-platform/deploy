@@ -427,14 +427,14 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	check("ops.sandbox-port", err == nil && strings.Contains(content(r), "Ported"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// ---- stateless tools ----
-	r, err = call(sid, "ops", "list-containerfile-templates", map[string]interface{}{})
-	check("ops.list-containerfile-templates", err == nil && strings.Contains(content(r), "cargo"), fmt.Sprintf("err=%v content=%q", err, content(r)))
+	r, err = call(sid, "ops", "packages-search", map[string]interface{}{})
+	check("ops.packages-search", err == nil && r.Error == nil && strings.Contains(content(r), "abc-protocol-go"), fmt.Sprintf("err=%v in-band=%+v content=%q", err, r.Error, content(r)))
 
-	r, err = call(sid, "ops", "list-registry-packages", map[string]interface{}{})
-	check("ops.list-registry-packages", err == nil && strings.Contains(content(r), "abc-protocol-go"), fmt.Sprintf("err=%v content=%q", err, content(r)))
+	r, err = call(sid, "ops", "container-search", map[string]interface{}{})
+	check("ops.container-search", err == nil && r.Error == nil && strings.Contains(content(r), "zergx-agent"), fmt.Sprintf("err=%v in-band=%+v content=%q", err, r.Error, content(r)))
 
-	r, err = call(sid, "ops", "image-list", map[string]interface{}{})
-	check("ops.image-list", err == nil && strings.Contains(content(r), "zergx-agent"), fmt.Sprintf("err=%v content=%q", err, content(r)))
+	r, err = call(sid, "ops", "service-list", map[string]interface{}{})
+	check("ops.service-list", err == nil && r.Error == nil, fmt.Sprintf("err=%v in-band=%+v content=%q", err, r.Error, content(r)))
 
 	r, err = call(sid, "ops", "helm-list", map[string]interface{}{})
 	check("ops.helm-list", err == nil && r.Error == nil, fmt.Sprintf("err=%v in-band=%+v", err, r.Error))
