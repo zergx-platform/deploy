@@ -166,7 +166,7 @@ services:
     port: 80
     containerPort: 8080
     # Rust jj-lib native server (single static binary, no external git/jj).
-    image: jj-lab.temp.svc.cluster.local/root/jj-lab:v0.3.28
+    image: jj-lab.temp.svc.cluster.local/root/jj-lab:v0.3.29
   repo-extension:
     enabled: true
     port: 80
