@@ -379,7 +379,13 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	}
 
 	// ---- sandbox lifecycle: write → read → edit → read ----
-	r, err := call(sid, "ops", "sandbox-write", map[string]interface{}{
+	// sandbox-* now require an explicit sandbox-create(image) first.
+	r, err := call(sid, "ops", "sandbox-create", map[string]interface{}{
+		"image": "docker.io/library/alpine:3.20",
+	})
+	check("ops.sandbox-create", err == nil && strings.Contains(content(r), "Created"), fmt.Sprintf("err=%v content=%q", err, content(r)))
+
+	r, err = call(sid, "ops", "sandbox-write", map[string]interface{}{
 		"path": "e2e-ops.txt", "content": "line1\nline2\n",
 	})
 	check("ops.sandbox-write", err == nil && strings.Contains(content(r), "Wrote"), fmt.Sprintf("err=%v content=%q", err, content(r)))
