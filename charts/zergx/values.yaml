@@ -144,7 +144,7 @@ services:
     port: 80
     containerPort: 8080
     # Go aggregate API + streaming reverse proxy + embedded SPA.
-    image: jj-lab.zergx.svc.cluster.local/root/zergx-platform:dev-09040616
+    image: jj-lab.zergx.svc.cluster.local/root/zergx-platform:dev-09041608
   artifact:
     enabled: false  # retired: registry is now http://jj-lab.zergx.svc.cluster.local
     port: 80
@@ -166,19 +166,19 @@ services:
     port: 80
     containerPort: 8080
     # Rust jj-lib native server (single static binary, no external git/jj).
-    image: jj-lab.zergx.svc.cluster.local/root/jj-lab:v0.3.34
+    image: jj-lab.zergx.svc.cluster.local/root/jj-lab:dev-09041608
   repo-extension:
     enabled: true
     port: 80
     containerPort: 8080
     # Go NATS tool layer forwarding agent file/git tools to jjlab.
-    image: jj-lab.zergx.svc.cluster.local/root/zergx-repo-extension:dev-09040616
+    image: jj-lab.zergx.svc.cluster.local/root/zergx-repo-extension:dev-09041800
   ops-extension:
     enabled: true
     port: 80
     containerPort: 8080
     # Go single-binary extension: executor + sandbox-tools + builder + artifact-tools.
-    image: jj-lab.zergx.svc.cluster.local/root/zergx-ops-extension:dev-09040616  # prev v0.0.23
+    image: jj-lab.zergx.svc.cluster.local/root/zergx-ops-extension:dev-09041608
   wdbidi-extension:
     enabled: true
     port: 80
@@ -191,7 +191,7 @@ services:
     containerPort: 8080
     # The agent is the TypeScript implementation (Vercel AI SDK); the Rust
     # agent has been removed.
-    image: jj-lab.zergx.svc.cluster.local/root/zergx-agent:dev-09040616
+    image: jj-lab.zergx.svc.cluster.local/root/zergx-agent:dev-09041608
   memory-tools:
     enabled: true
     port: 80
