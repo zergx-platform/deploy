@@ -138,8 +138,11 @@ func runLifecycle(ctx context.Context, call func(string, string, string, map[str
 		return resp.StatusCode, string(b)
 	}
 	branches := func(branch string) string {
-		r, err := call("", "repo", "git-graph", map[string]interface{}{
-			"_org": org, "_repo": "api", "_bookmark": branch,
+		// explore lists repos with their bookmarks, e.g. "- api (bookmarks: main)".
+		// git-graph's content omits the bookmark name, so use explore to assert
+		// the main bookmark's presence during the lifecycle.
+		r, err := call("", "repo", "explore", map[string]interface{}{
+			"_org": org, "_repo": "api",
 		})
 		if err != nil {
 			return ""
