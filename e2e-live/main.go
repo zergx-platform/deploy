@@ -35,6 +35,7 @@ var (
 	natsURL  = envOr("ABC_E2E_NATS", "nats://nats.temp.svc.cluster.local:4222")
 	pgDSN    = envOr("ABC_E2E_PG", "postgres://root:devpassword@postgres.temp.svc.cluster.local:5432/zergx_agent")
 	jjBase   = envOr("ABC_E2E_JJ", "http://jj-lab.temp.svc.cluster.local/api/v1")
+	jjToken  = envOr("ABC_E2E_JJ_TOKEN", "devtoken")
 	opsBase  = envOr("ABC_E2E_OPS", "http://ops-extension.temp.svc.cluster.local/api/v1")
 	agentURL = envOr("ABC_E2E_AGENT", "http://agent.temp.svc.cluster.local")
 )

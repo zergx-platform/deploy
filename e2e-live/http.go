@@ -18,6 +18,11 @@ func httpNew(method, url, body string) (*http.Request, error) {
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	// jjlab mutating endpoints require a write token (Gitea-style
+	// `Authorization: token <pat>`); without it an anon write 404s.
+	if jjToken != "" {
+		req.Header.Set("Authorization", "token "+jjToken)
+	}
 	return req, nil
 }
 
