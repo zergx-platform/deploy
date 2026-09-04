@@ -272,8 +272,8 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 		_ = err
 		_ = resp
 	}
-	post("/repos/ensure-org", `{"org":"`+o+`"}`)
-	post("/repos/ensure", `{"org":"`+o+`","repo":"`+rp+`"}`)
+	post("/orgs", `{"name":"`+o+`"}`)
+	post("/repos/"+o+"/"+rp, `{"default_bookmark":"main"}`)
 	// no session bootstrap here on purpose: repo writes lazily adopt the
 	// workspace, and the end-of-section cleanup deletes it again — a
 	// persistent session would make the reconciler resurrect it forever.
@@ -387,8 +387,10 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 				resp.Body.Close()
 			}
 		}
-		post("/repos/ensure-org", `{"org":"test"}`)
-		post("/repos/ensure", `{"org":"test","repo":"dbg1"}`)
+		// ensure-org/ensure were jjlab endpoints; the current API uses
+		// POST /orgs (name) + POST /repos/{org}/{repo} (default_bookmark).
+		post("/orgs", `{"name":"test"}`)
+		post("/repos/test/dbg1", `{"default_bookmark":"main"}`)
 		// Seed a file so the repo has a real main bookmark head.
 		_, _ = call("", "repo", "write", map[string]interface{}{
 			"_org": "test", "_repo": "dbg1", "_bookmark": "main",
