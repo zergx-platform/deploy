@@ -424,7 +424,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	r, err = call(sid, "ops", "sandbox-port", map[string]interface{}{
 		"sandbox_path": "port-e2e.txt", "repo_path": "ported-e2e.txt", "message": "e2e port",
 	})
-	check("ops.sandbox-port", err == nil && strings.Contains(content(r), "Ported"), fmt.Sprintf("err=%v content=%q", err, content(r)))
+	check("ops.sandbox-port", err == nil && strings.Contains(content(r), "Ported"), fmt.Sprintf("err=%v in-band=%+v content=%q", err, r.Error, content(r)))
 
 	// ---- stateless tools ----
 	r, err = call(sid, "ops", "packages-search", map[string]interface{}{})
