@@ -124,6 +124,9 @@ func runLifecycle(ctx context.Context, call func(string, string, string, map[str
 
 	agentBase := agentURL
 	org := fmt.Sprintf("e2elf%d", time.Now().UnixNano()%1_000_000)
+	// Cleanup even if an assertion panics (runRepo/runLifecycle crashed before
+	// and left empty org/repo shells in jjlab).
+	defer cleanupWorkspace("", org)
 	post := func(path, body string) (int, string) {
 		req, err := httpNew("POST", agentBase+path, body)
 		if err != nil {
@@ -142,7 +145,7 @@ func runLifecycle(ctx context.Context, call func(string, string, string, map[str
 		// git-graph's content omits the bookmark name, so use explore to assert
 		// the main bookmark's presence during the lifecycle.
 		r, err := call("", "repo", "explore", map[string]interface{}{
-			"_org": org, "_repo": "api",
+			"org": org, "repo": "api",
 		})
 		if err != nil {
 			return ""
@@ -247,6 +250,17 @@ func runMemory(ctx context.Context, call func(string, string, string, map[string
 func runRepo(ctx context.Context, call func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
 	fmt.Println("=== repo-extension (id=repo) ===")
 	o, rp, bm := "build", "example", "main"
+	// Cleanup on panic too (before, a crash left build/example or empty shells).
+	defer func() {
+		del := func(path string) {
+			req, _ := httpNew("DELETE", jjBase+path, "")
+			if resp, err := httpDo(req); err == nil && resp != nil {
+				resp.Body.Close()
+			}
+		}
+		del("/repos/" + o + "/" + rp)
+		del("/repos/" + o)
+	}()
 
 	// ensure test repo
 	post := func(path string, body string) {
@@ -452,6 +466,8 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	// Unique workspace per run via the supported bootstrap (session
 	// lifecycle): the section's build tools resolve from this session.
 	sorg := fmt.Sprintf("e2o%d", time.Now().UnixNano()%1_000_000)
+	// Cleanup on panic as well (before, a crash left empty org/repo shells).
+	defer cleanupWorkspace(sid, sorg)
 	sid = sorg + ":smoke:main"
 	if req, e := httpNew("POST", agentURL+"/api/v1/sessions", `{"name":"`+sid+`"}`); e == nil {
 		if resp, e := httpDo(req); e == nil {
@@ -721,7 +737,7 @@ func cleanupWorkspace(sid, org string) {
 			}
 		}
 	}
-	if req, e := httpNew("DELETE", jjBase+"/repos/"+org, ""); e == nil {
+	if req, e := httpNew("DELETE", jjBase+"/orgs/"+org, ""); e == nil {
 		if resp, e := httpDo(req); e == nil {
 			resp.Body.Close()
 		}
