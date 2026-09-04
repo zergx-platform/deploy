@@ -231,10 +231,10 @@ func runMemory(ctx context.Context, call func(string, string, string, map[string
 	_, _ = db.Exec(`INSERT INTO parts (id, message_id, type, seq, data) VALUES ($1,$2,'text',0,$3),($4,$5,'text',0,$6)`,
 		"p1-"+sid, m1, `{"text":"hello from e2e keyword needle"}`, "p2-"+sid, m2, `{"text":"second message"}`)
 
-	r, err = call(sid, "memory", "history_search", map[string]interface{}{"query": "needle", "limit": 10})
+	r, err = call(sid, "memory", "history-search", map[string]interface{}{"query": "needle", "limit": 10})
 	check("memory.history_search", err == nil && strings.Contains(content(r), "1"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
-	r, err = call(sid, "memory", "history_range", map[string]interface{}{"from": 0, "to": 1, "limit": 10})
+	r, err = call(sid, "memory", "history-range", map[string]interface{}{"from": 0, "to": 1, "limit": 10})
 	check("memory.history_range", err == nil && strings.Contains(content(r), "1"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	_, _ = db.Exec(`DELETE FROM sessions WHERE name=$1`, sid)
@@ -287,7 +287,7 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 
 	// edit
 	r, err = call("", "repo", "edit", map[string]interface{}{
-		"_org": o, "_repo": rp, "_branch": bm, "path": "e2e.txt", "start_line": 2, "end_line": 2, "content": "line TWO edited\n", "message": "e2e edit",
+		"_org": o, "_repo": rp, "_branch": bm, "path": "e2e.txt", "start-line": 2, "end-line": 2, "content": "line TWO edited\n", "message": "e2e edit",
 	})
 	check("repo.edit", err == nil && strings.Contains(content(r), "edited file"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
@@ -325,7 +325,7 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 
 	// git-diff between the two changes
 	r, err = call("", "repo", "git-diff", map[string]interface{}{
-		"_org": o, "_repo": rp, "_branch": bm, "rev_a": cidWrite, "rev_b": cidV2, "path": "e2e-v2.txt",
+		"_org": o, "_repo": rp, "_branch": bm, "rev-a": cidWrite, "rev-b": cidV2, "path": "e2e-v2.txt",
 	})
 	check("repo.git-diff", err == nil, fmt.Sprintf("err=%v content=%q", err, content(r)))
 
@@ -394,7 +394,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	check("ops.sandbox-read", err == nil && strings.Contains(content(r), "line1") && strings.Contains(content(r), "line2"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "sandbox-edit", map[string]interface{}{
-		"path": "e2e-ops.txt", "start_line": 1, "end_line": 1, "content": "line1-EDITED",
+		"path": "e2e-ops.txt", "start-line": 1, "end-line": 1, "content": "line1-EDITED",
 	})
 	check("ops.sandbox-edit", err == nil && strings.Contains(content(r), "Edited"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
@@ -405,14 +405,14 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	r, err = call(sid, "ops", "sandbox-run", map[string]interface{}{"command": "echo ops-e2e-hello"})
 	check("ops.sandbox-run", err == nil && strings.Contains(content(r), "ops-e2e-hello"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 	meta, _ := r.Data.(map[string]interface{})
-	jobID, _ := meta["job_id"].(string)
+	jobID, _ := meta["job-id"].(string)
 
 	// ---- sandbox-job-list ----
 	r, err = call(sid, "ops", "sandbox-job-list", map[string]interface{}{})
 	check("ops.sandbox-job-list", err == nil && strings.Contains(content(r), jobID), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// ---- sandbox-job-output (job from sandbox-run) ----
-	r, err = call(sid, "ops", "sandbox-job-output", map[string]interface{}{"job_id": jobID})
+	r, err = call(sid, "ops", "sandbox-job-output", map[string]interface{}{"job-id": jobID})
 	check("ops.sandbox-job-output", err == nil && strings.Contains(content(r), "ops-e2e-hello"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// ---- sandbox-port (sandbox file → repo) ----
@@ -422,7 +422,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	check("ops.sandbox-write-port", err == nil, fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	r, err = call(sid, "ops", "sandbox-port", map[string]interface{}{
-		"sandbox_path": "port-e2e.txt", "repo_path": "ported-e2e.txt", "message": "e2e port",
+		"sandbox-path": "port-e2e.txt", "repo-path": "ported-e2e.txt", "message": "e2e port",
 	})
 	check("ops.sandbox-port", err == nil && strings.Contains(content(r), "Ported"), fmt.Sprintf("err=%v in-band=%+v content=%q", err, r.Error, content(r)))
 
@@ -473,7 +473,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	check("ops.containerfile-seed", seedOK, "Containerfile never landed in "+sid)
 
 	r, err = callLong(sid, "ops", "container-build", map[string]interface{}{
-		"dockerfile_path": "Containerfile", "tag": imgTag,
+		"dockerfile-path": "Containerfile", "tag": imgTag,
 	})
 	check("ops.container-build", err == nil && strings.Contains(content(r), "Finished build"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
@@ -498,14 +498,14 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 		})
 	}
 	r, err = call(sid, "ops", "helm-install", map[string]interface{}{
-		"release_name": releaseName, "chart_path": "e2e-chart",
+		"release-name": releaseName, "chart-path": "e2e-chart",
 	})
 	check("ops.helm-install", err == nil && strings.Contains(content(r), "Finished helm"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
-	r, err = call(sid, "ops", "helm-status", map[string]interface{}{"release_name": releaseName})
+	r, err = call(sid, "ops", "helm-status", map[string]interface{}{"release-name": releaseName})
 	check("ops.helm-status", err == nil && strings.Contains(content(r), releaseName), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
-	r, err = call(sid, "ops", "helm-uninstall", map[string]interface{}{"release_name": releaseName})
+	r, err = call(sid, "ops", "helm-uninstall", map[string]interface{}{"release-name": releaseName})
 	check("ops.helm-uninstall", err == nil && strings.Contains(content(r), "Uninstalled"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// cleanup: remove the deployed e2e deployment + service so reruns don't
@@ -570,7 +570,7 @@ func runProgressInterrupt(ctx context.Context, ag *agent.Agent, call, callLong f
 	errc := make(chan error, 1)
 	go func() {
 		tr, err := callLong(psid, "ops", "container-build", map[string]interface{}{
-			"dockerfile_path": "Containerfile", "tag": "e2e-prog-img",
+			"dockerfile-path": "Containerfile", "tag": "e2e-prog-img",
 		})
 		done <- tr
 		errc <- err

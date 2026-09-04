@@ -44,32 +44,33 @@ global:
 
 jjlab:
   url: http://jj-lab.temp.svc.cluster.local
+  registry: jj-lab.temp.svc.cluster.local
 
 k8s:
-  workerImage: jj-lab.temp.svc.cluster.local/root/zergx-worker:dev-09040359
+  workerImage: jj-lab.temp.svc.cluster.local/root/zergx-worker:dev-09040616
 
 builder:
   registry: jj-lab.temp.svc.cluster.local
 
 services:
   flutter:
-    image: jj-lab.temp.svc.cluster.local/root/zergx-flutter:dev-09040359
+    image: jj-lab.temp.svc.cluster.local/root/zergx-flutter:dev-09040616
   platform:
-    image: jj-lab.temp.svc.cluster.local/root/zergx-platform:dev-09040359
+    image: jj-lab.temp.svc.cluster.local/root/zergx-platform:dev-09040616
   artifact:
     image: jj-lab.temp.svc.cluster.local/root/go-registry@sha256:78574b905f9fc1c4ce6fc7209e2a04b817e5447836af2af04cf6d79ac73ba550
   jjlab:
-    image: jj-lab.temp.svc.cluster.local/root/jj-lab:dev-09040359
+    image: jj-lab.temp.svc.cluster.local/root/jj-lab:dev-09040616
   repo-extension:
-    image: jj-lab.temp.svc.cluster.local/root/zergx-repo-extension:dev-09040359
+    image: jj-lab.temp.svc.cluster.local/root/zergx-repo-extension:dev-09040616
   ops-extension:
-    image: jj-lab.temp.svc.cluster.local/root/zergx-ops-extension:dev-09040359
+    image: jj-lab.temp.svc.cluster.local/root/zergx-ops-extension:dev-09040616
   wdbidi-extension:
-    image: jj-lab.temp.svc.cluster.local/root/zergx-wdbidi-extension:dev-09040359
+    image: jj-lab.temp.svc.cluster.local/root/zergx-wdbidi-extension:dev-09040616
   agent:
-    image: jj-lab.temp.svc.cluster.local/root/zergx-agent:dev-09040359
+    image: jj-lab.temp.svc.cluster.local/root/zergx-agent:dev-09040616
   memory-tools:
-    image: jj-lab.temp.svc.cluster.local/root/zergx-memory-extension:dev-09040359
+    image: jj-lab.temp.svc.cluster.local/root/zergx-memory-extension:dev-09040616
 infra:
   buildkitd:
     extraMirrors:
