@@ -343,8 +343,8 @@ data:
       # plain HTTP — no TLS, no nip.io. Base images (docker.io library/*) are
       # pull-through-cached by jjlab; service image pushes target the same host.
       [registry."docker.io"]
-        mirrors = ["jj-lab.temp.svc.cluster.local"]
-      [registry."jj-lab.temp.svc.cluster.local"]
+        mirrors = ["{{ .Values.jjlab.registry }}"]
+      [registry."{{ .Values.jjlab.registry }}"]
         http = true
         insecure = true
         {{- if .Values.jjlab.token }}
