@@ -138,7 +138,7 @@ func runLifecycle(ctx context.Context, call func(string, string, string, map[str
 		return resp.StatusCode, string(b)
 	}
 	branches := func(branch string) string {
-		r, err := call("", "repo", "git-branches", map[string]interface{}{
+		r, err := call("", "repo", "git-graph", map[string]interface{}{
 			"_org": org, "_repo": "api", "_bookmark": branch,
 		})
 		if err != nil {
@@ -301,9 +301,10 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 	r, err = call("", "repo", "git-log", map[string]interface{}{"_org": o, "_repo": rp, "_bookmark": bm})
 	check("repo.git-log", err == nil && strings.Contains(content(r), "commit"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
-	// git-branches
-	r, err = call("", "repo", "git-branches", map[string]interface{}{"_org": o, "_repo": rp, "_bookmark": bm})
-	check("repo.git-branches", err == nil && strings.Contains(content(r), "main"), fmt.Sprintf("err=%v content=%q", err, content(r)))
+	// git-graph (replaces the removed git-branches tool; graph nodes carry the
+	// head bookmark's commit, so 'main' appears in the commit id/message).
+	r, err = call("", "repo", "git-graph", map[string]interface{}{"_org": o, "_repo": rp, "_bookmark": bm})
+	check("repo.git-graph", err == nil && strings.Contains(content(r), "HEAD"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// explore
 	r, err = call("", "repo", "explore", map[string]interface{}{})
