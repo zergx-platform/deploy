@@ -68,7 +68,7 @@ services:
   wdbidi-extension:
     image: jj-lab.temp.svc.cluster.local/root/zergx-wdbidi-extension:dev-09041917
   agent:
-    image: jj-lab.temp.svc.cluster.local/root/zergx-agent:dev-09051246
+    image: jj-lab.temp.svc.cluster.local/root/zergx-agent:dev-09051406
   memory-tools:
     image: jj-lab.temp.svc.cluster.local/root/zergx-memory-extension:dev-09051246
 infra:

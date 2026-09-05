@@ -191,7 +191,7 @@ services:
     containerPort: 8080
     # The agent is the TypeScript implementation (Vercel AI SDK); the Rust
     # agent has been removed.
-    image: jj-lab.zergx.svc.cluster.local/root/zergx-agent:dev-09051246
+    image: jj-lab.zergx.svc.cluster.local/root/zergx-agent:dev-09051406
   memory-tools:
     enabled: true
     port: 80
