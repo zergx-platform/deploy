@@ -33,7 +33,7 @@ GOSUMDB=off go run .
 |---|---|
 | memory（id=`memory`） | todowrite / history_search / history_range |
 | repo（id=`repo`） | write / read / ls / grep / edit / git-log / git-branches / explore / git-show / git-diff / git-blame / delete |
-| ops（id=`ops`） | sandbox-write / sandbox-read / sandbox-edit / sandbox-run / sandbox-job-list / sandbox-job-output / sandbox-port / list-containerfile-templates / list-registry-packages / image-list / helm-list / container-build / container-deploy / helm-install / helm-status / helm-uninstall |
+| ops（id=`ops`） | sandbox-write / sandbox-read / sandbox-edit / sandbox-run / sandbox-job-list / sandbox-job-output / sandbox-port / list-containerfile-templates / list-registry-packages / image-list / helm-list / container-build / service-deploy / helm-install / helm-status / helm-uninstall |
 
 ## 测试数据与清理
 

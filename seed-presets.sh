@@ -67,7 +67,7 @@ zh_of_explore='# 环境（Environment）
 3. 在使用任何其它 sandbox-* 工具前，先调用 sandbox-create 并指定镜像（如 docker.io/library/<toolchain>）；否则其它沙箱工具会报“sandbox not created”错误。
 3. 禁止：仓库改写（write、delete、edit、git-rebase、git-resolve）、构建/部署/发布（container-*、package-*）、helm、合并请求。'
 
-build_tools="read ls grep explore git-diff git-blame git-log git-show git-graph write delete edit git-rebase git-resolve history-search history-range file-info image-read todowrite sandbox-create sandbox-run sandbox-read sandbox-write sandbox-edit sandbox-job-list sandbox-job-output sandbox-job-wait sandbox-job-stdin sandbox-job-kill sandbox-port sandbox-download container-build package-publish container-deploy container-search service-list packages-search pull-git-repo"
+build_tools="read ls grep explore git-diff git-blame git-log git-show git-graph write delete edit git-rebase git-resolve history-search history-range file-info image-read todowrite sandbox-create sandbox-run sandbox-read sandbox-write sandbox-edit sandbox-job-list sandbox-job-output sandbox-job-wait sandbox-job-stdin sandbox-job-kill sandbox-port sandbox-download container-build package-publish service-deploy container-search service-list package-search pull-git-repo"
 en_of_build='# Environment
 You are in a **repository workspace** ({{vars.repo.org}}/{{vars.repo.repo}}#{{vars.repo.bookmark}}). Key concepts:
 
@@ -82,7 +82,7 @@ Rules:
 1. You may read, write, and modify repo files and branches; git-rebase another bookmark'\''s unique commits onto your own branch (the destination is always your branch — you never modify someone else'\''s branch); git-resolve to fix conflicts.
 2. Use the sandbox for build/test (sandbox-*); sandbox-port writes your artifacts back into the repo.
 3. Before any other sandbox-* tool, call sandbox-create with an image (e.g. docker.io/library/<toolchain>); other sandbox tools fail with a "sandbox not created" error.
-3. Build images (container-build) and publish package versions (package-publish) as single-step artifact releases. Inspect images/services/packages read-only (container-search, service-list, packages-search). Fetch external repos with pull-git-repo. Deploy your service with container-deploy.
+3. Build images (container-build) and publish package versions (package-publish) as single-step artifact releases. Inspect images/services/packages read-only (container-search, service-list, package-search). Fetch external repos with pull-git-repo. Deploy your service with service-deploy.
 4. Forbidden: helm operations (helm-*), merge-request flow (mr-*), worksheet interaction (fork-bookmark, delete-bookmark).
 5. Confirm before any external side effect (publish, deploy).'
 zh_of_build='# 环境（Environment）
@@ -99,7 +99,7 @@ zh_of_build='# 环境（Environment）
 1. 你可以读写、修改仓库文件与分支；用 git-rebase 把其它书签的独有提交变基到**你自己的**分支（目标永远是你的分支——绝不改动他人分支）；用 git-resolve 解决冲突。
 2. 用沙箱构建/测试（sandbox-*）；sandbox-port 把产物写回仓库。
 3. 在使用任何其它 sandbox-* 工具前，先调用 sandbox-create 并指定镜像（如 docker.io/library/<toolchain>）；否则其它沙箱工具会报“sandbox not created”错误。
-3. 构建镜像（container-build）、发布包版本（package-publish）作为单步产物发布。用 container-search、service-list、packages-search 只读查看镜像/服务/包。用 pull-git-repo 拉取外部仓库。用 container-deploy 部署你的服务。
+3. 构建镜像（container-build）、发布包版本（package-publish）作为单步产物发布。用 container-search、service-list、package-search 只读查看镜像/服务/包。用 pull-git-repo 拉取外部仓库。用 service-deploy 部署你的服务。
 4. 禁止：helm 操作（helm-*）、合并请求流程（mr-*）、工单交互（fork-bookmark、delete-bookmark）。
 5. 任何外部副作用（发布、部署）前请确认。'
 

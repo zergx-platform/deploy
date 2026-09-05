@@ -251,6 +251,7 @@ func runMemory(ctx context.Context, call func(string, string, string, map[string
 func runRepo(ctx context.Context, call func(string, string, string, map[string]interface{}) (agent.ToolResult, error)) {
 	fmt.Println("=== repo-extension (id=repo) ===")
 	o, rp, bm := "build", "example", "main"
+	sid := o + ":" + rp + ":" + bm
 	// Cleanup on panic too (before, a crash left build/example or empty shells).
 	defer func() {
 		del := func(path string) {
@@ -280,83 +281,83 @@ func runRepo(ctx context.Context, call func(string, string, string, map[string]i
 	// persistent session would make the reconciler resurrect it forever.
 
 	// write
-	r, err := call("", "repo", "write", map[string]interface{}{
-		"_org": o, "_repo": rp, "_bookmark": bm, "path": "e2e.txt", "content": "line one\nline two\nline three\n", "message": "e2e write",
+	r, err := call(sid, "repo", "write", map[string]interface{}{
+		"path": "e2e.txt", "content": "line one\nline two\nline three\n", "message": "e2e write",
 	})
 	check("repo.write", err == nil && strings.Contains(content(r), "wrote file"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 	meta := r.Data.(map[string]interface{})
 	cidWrite, _ := meta["change_id"].(string)
 
 	// read
-	r, err = call("", "repo", "read", map[string]interface{}{
-		"_org": o, "_repo": rp, "_bookmark": bm, "path": "e2e.txt",
+	r, err = call(sid, "repo", "read", map[string]interface{}{
+		"path": "e2e.txt",
 	})
 	check("repo.read", err == nil && strings.Contains(content(r), "1: line one") && strings.Contains(content(r), "3: line three"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// ls
-	r, err = call("", "repo", "ls", map[string]interface{}{"_org": o, "_repo": rp, "_bookmark": bm})
+	r, err = call(sid, "repo", "ls", map[string]interface{}{})
 	check("repo.ls", err == nil && strings.Contains(content(r), "e2e.txt"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// grep
-	r, err = call("", "repo", "grep", map[string]interface{}{
-		"_org": o, "_repo": rp, "_bookmark": bm, "pattern": "line two",
+	r, err = call(sid, "repo", "grep", map[string]interface{}{
+		"pattern": "line two",
 	})
 	check("repo.grep", err == nil && strings.Contains(content(r), "line two"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// edit
-	r, err = call("", "repo", "edit", map[string]interface{}{
-		"_org": o, "_repo": rp, "_bookmark": bm, "path": "e2e.txt", "start-line": 2, "end-line": 2, "content": "line TWO edited\n", "message": "e2e edit",
+	r, err = call(sid, "repo", "edit", map[string]interface{}{
+		"path": "e2e.txt", "start-line": 2, "end-line": 2, "content": "line TWO edited\n", "message": "e2e edit",
 	})
 	check("repo.edit", err == nil && strings.Contains(content(r), "edited file"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// read-after-edit
-	r, err = call("", "repo", "read", map[string]interface{}{
-		"_org": o, "_repo": rp, "_bookmark": bm, "path": "e2e.txt",
+	r, err = call(sid, "repo", "read", map[string]interface{}{
+		"path": "e2e.txt",
 	})
 	check("repo.read-after-edit", err == nil && strings.Contains(content(r), "2: line TWO edited"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// git-log
-	r, err = call("", "repo", "git-log", map[string]interface{}{"_org": o, "_repo": rp, "_bookmark": bm})
+	r, err = call(sid, "repo", "git-log", map[string]interface{}{})
 	check("repo.git-log", err == nil && strings.Contains(content(r), "commit"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// git-graph (replaces the removed git-branches tool; graph nodes carry the
 	// head bookmark's commit, so 'main' appears in the commit id/message).
-	r, err = call("", "repo", "git-graph", map[string]interface{}{"_org": o, "_repo": rp, "_bookmark": bm})
+	r, err = call(sid, "repo", "git-graph", map[string]interface{}{})
 	check("repo.git-graph", err == nil && strings.Contains(content(r), "HEAD"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// explore
-	r, err = call("", "repo", "explore", map[string]interface{}{})
+	r, err = call(sid, "repo", "explore", map[string]interface{}{})
 	check("repo.explore", err == nil && strings.Contains(content(r), o), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// git-show: rev = write change_id
-	r, err = call("", "repo", "git-show", map[string]interface{}{
-		"_org": o, "_repo": rp, "_bookmark": bm, "rev": cidWrite,
+	r, err = call(sid, "repo", "git-show", map[string]interface{}{
+		"rev": cidWrite,
 	})
 	check("repo.git-show", err == nil && strings.Contains(content(r), "e2e"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// second write → second commit for diff
-	r, err = call("", "repo", "write", map[string]interface{}{
-		"_org": o, "_repo": rp, "_bookmark": bm, "path": "e2e-v2.txt", "content": "v2\n", "message": "e2e v2",
+	r, err = call(sid, "repo", "write", map[string]interface{}{
+		"path": "e2e-v2.txt", "content": "v2\n", "message": "e2e v2",
 	})
 	meta2 := r.Data.(map[string]interface{})
 	cidV2, _ := meta2["change_id"].(string)
 	check("repo.write-2", err == nil && cidV2 != "", fmt.Sprintf("err=%v", err))
 
 	// git-diff between the two changes
-	r, err = call("", "repo", "git-diff", map[string]interface{}{
-		"_org": o, "_repo": rp, "_bookmark": bm, "rev-a": cidWrite, "rev-b": cidV2, "path": "e2e-v2.txt",
+	r, err = call(sid, "repo", "git-diff", map[string]interface{}{
+		"rev-a": cidWrite, "rev-b": cidV2, "path": "e2e-v2.txt",
 	})
 	check("repo.git-diff", err == nil, fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// git-blame
-	r, err = call("", "repo", "git-blame", map[string]interface{}{
-		"_org": o, "_repo": rp, "_bookmark": bm, "rev": bm, "path": "e2e-v2.txt",
+	r, err = call(sid, "repo", "git-blame", map[string]interface{}{
+		"rev": bm, "path": "e2e-v2.txt",
 	})
 	check("repo.git-blame", err == nil && strings.Contains(content(r), "v2"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// delete
-	r, err = call("", "repo", "delete", map[string]interface{}{
-		"_org": o, "_repo": rp, "_bookmark": bm, "path": "e2e.txt", "message": "e2e delete",
+	r, err = call(sid, "repo", "delete", map[string]interface{}{
+		"path": "e2e.txt", "message": "e2e delete",
 	})
 	check("repo.delete", err == nil && strings.Contains(content(r), "deleted file"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
@@ -393,8 +394,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 		post("/orgs", `{"name":"test"}`)
 		post("/repos/test/dbg1", `{"default_bookmark":"main"}`)
 		// Seed a file so the repo has a real main bookmark head.
-		_, _ = call("", "repo", "write", map[string]interface{}{
-			"_org": "test", "_repo": "dbg1", "_bookmark": "main",
+		_, _ = call(sid, "repo", "write", map[string]interface{}{
 			"path": "e2e-ops-seed.txt", "content": "seed\n", "message": "e2e ops seed",
 		})
 	}
@@ -448,8 +448,8 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	check("ops.sandbox-port", err == nil && strings.Contains(content(r), "Ported"), fmt.Sprintf("err=%v in-band=%+v content=%q", err, r.Error, content(r)))
 
 	// ---- stateless tools ----
-	r, err = call(sid, "ops", "packages-search", map[string]interface{}{})
-	check("ops.packages-search", err == nil && r.Error == nil && strings.Contains(content(r), "abc-protocol-go"), fmt.Sprintf("err=%v in-band=%+v content=%q", err, r.Error, content(r)))
+	r, err = call(sid, "ops", "package-search", map[string]interface{}{})
+	check("ops.package-search", err == nil && r.Error == nil && strings.Contains(content(r), "abc-protocol-go"), fmt.Sprintf("err=%v in-band=%+v content=%q", err, r.Error, content(r)))
 
 	r, err = call(sid, "ops", "container-search", map[string]interface{}{})
 	check("ops.container-search", err == nil && r.Error == nil && strings.Contains(content(r), "zergx-agent"), fmt.Sprintf("err=%v in-band=%+v content=%q", err, r.Error, content(r)))
@@ -482,8 +482,7 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	// via repo-extension (test/dbg1), build it, then deploy from the image.
 	seedOK := false
 	for i := 0; i < 12; i++ {
-		r, werr := call("", "repo", "write", map[string]interface{}{
-			"_org": sorg, "_repo": "smoke", "_bookmark": "main",
+		r, werr := call(sid, "repo", "write", map[string]interface{}{
 			"path": "Containerfile", "content": "FROM library/busybox:1.36\nCOPY Containerfile /e2e-ops-marker.txt\nCMD [\"httpd\",\"-f\",\"-p\",\"8080\"]\n",
 			"message": "e2e containerfile",
 		})
@@ -500,13 +499,13 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 	})
 	check("ops.container-build", err == nil && strings.Contains(content(r), "Finished build"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
-	// container-deploy: image must be the fully-qualified reference
+	// service-deploy: image must be the fully-qualified reference
 	// ({registry}/{tag}:{bookmark}) so the deployment's pods can pull it.
 	fullImage := envOr("ABC_E2E_REGISTRY", "jj-lab.temp.svc.cluster.local") + "/" + imgTag + ":main"
-	r, err = call(sid, "ops", "container-deploy", map[string]interface{}{
+	r, err = call(sid, "ops", "service-deploy", map[string]interface{}{
 		"image": fullImage, "name": runTag,
 	})
-	check("ops.container-deploy", err == nil && strings.Contains(content(r), "Deployed"), fmt.Sprintf("err=%v content=%q", err, content(r)))
+	check("ops.service-deploy", err == nil && strings.Contains(content(r), "Deployed"), fmt.Sprintf("err=%v content=%q", err, content(r)))
 
 	// helm-install needs a real chart in the workspace. Write a minimal chart,
 	// install it, verify via status, then uninstall.
@@ -516,8 +515,8 @@ func runOps(ctx context.Context, call func(string, string, string, map[string]in
 		"e2e-chart/templates/configmap.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: e2e-ops-probe-cm\ndata:\n  hello: world\n",
 	}
 	for p, c := range chartFiles {
-		_, _ = call("", "repo", "write", map[string]interface{}{
-			"_org": sorg, "_repo": "smoke", "_bookmark": "main", "path": p, "content": c, "message": "e2e chart",
+		_, _ = call(sid, "repo", "write", map[string]interface{}{
+			"path": p, "content": c, "message": "e2e chart",
 		})
 	}
 	r, err = call(sid, "ops", "helm-install", map[string]interface{}{
@@ -559,8 +558,7 @@ func runProgressInterrupt(ctx context.Context, ag *agent.Agent, call, callLong f
 	}
 	seedOK := false
 	for i := 0; i < 10; i++ {
-		r, werr := call("", "repo", "write", map[string]interface{}{
-			"_org": porg, "_repo": "prog", "_bookmark": "main",
+		r, werr := call(psid, "repo", "write", map[string]interface{}{
 			"path": "Containerfile", "content": "FROM library/busybox:1.36\nCOPY Containerfile /e2e-marker.txt\nCMD [\"httpd\",\"-f\",\"-p\",\"8080\"]\n", "message": "prog seed",
 		})
 		if werr == nil && strings.Contains(content(r), "wrote file") {
@@ -629,14 +627,14 @@ func runOffload(ctx context.Context, ag *agent.Agent, call func(string, string, 
 	fmt.Println("=== object offload (repo big read) ===")
 
 	big := strings.Repeat("OFFLOAD-MARKER\n", 30000) // ~420KB
-	r, err := call("", "repo", "write", map[string]interface{}{
-		"_org": "test", "_repo": "dbg1", "_bookmark": "main",
+	osid := "test:dbg1:main"
+	r, err := call(osid, "repo", "write", map[string]interface{}{
 		"path": "big.txt", "content": big, "message": "e2e offload seed",
 	})
 	check("offload.seed write", err == nil && strings.Contains(content(r), "wrote file"), fmt.Sprintf("err=%v", err))
 
-	r, err = call("", "repo", "read", map[string]interface{}{
-		"_org": "test", "_repo": "dbg1", "_bookmark": "main", "path": "big.txt",
+	r, err = call(osid, "repo", "read", map[string]interface{}{
+		"path": "big.txt",
 	})
 	hasObj := err == nil && r.Object != nil
 	check("offload.result carries object ref", hasObj, fmt.Sprintf("err=%v object=%+v", err, r.Object))
