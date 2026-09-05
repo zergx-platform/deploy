@@ -628,12 +628,37 @@ func runOffload(ctx context.Context, ag *agent.Agent, call func(string, string, 
 
 	big := strings.Repeat("OFFLOAD-MARKER\n", 30000) // ~420KB
 	osid := "test:dbg1:main"
-	r, err := call(osid, "repo", "write", map[string]interface{}{
-		"path": "big.txt", "content": big, "message": "e2e offload seed",
-	})
-	check("offload.seed write", err == nil && strings.Contains(content(r), "wrote file"), fmt.Sprintf("err=%v", err))
-
-	r, err = call(osid, "repo", "read", map[string]interface{}{
+	// Bootstrap the session + repo so repo-extension's lifecycle event has
+	// created the workspace mapping before the write. The reconciler is
+	// asynchronous, so retry until the write lands.
+	{
+		post := func(path string, body string) {
+			req, _ := httpNew("POST", jjBase+path, body)
+			if resp, err := httpDo(req); err == nil && resp != nil {
+				resp.Body.Close()
+			}
+		}
+		if req, e := httpNew("POST", agentURL+"/api/v1/sessions", `{"name":"`+osid+`"}`); e == nil {
+			if resp, e := httpDo(req); e == nil {
+				resp.Body.Close()
+			}
+		}
+		post("/orgs", `{"name":"test"}`)
+		post("/repos/test/dbg1", `{"default_bookmark":"main"}`)
+	}
+	seedOK := false
+	for i := 0; i < 10; i++ {
+		r, werr := call(osid, "repo", "write", map[string]interface{}{
+			"path": "big.txt", "content": big, "message": "e2e offload seed",
+		})
+		if werr == nil && strings.Contains(content(r), "wrote file") {
+			seedOK = true
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	check("offload.seed write", seedOK, "big.txt never landed")
+	r, err := call(osid, "repo", "read", map[string]interface{}{
 		"path": "big.txt",
 	})
 	hasObj := err == nil && r.Object != nil
