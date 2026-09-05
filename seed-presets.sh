@@ -7,39 +7,39 @@ set -euo pipefail
 : "${SEED_HOST:=http://agent.zergx.svc.cluster.local:80}"
 BASE="$SEED_HOST/api/v1/presets"
 
-plan_tools="read ls grep explore git-diff git-blame git-log git-show git-branches history_search history_range file_info image_read todowrite"
+plan_tools="read ls grep explore git-diff git-blame git-log git-show git-graph history-search history-range file-info image-read todowrite"
 en_of_plan='# Environment
 You are in a **repository workspace** ({{vars.repo.org}}/{{vars.repo.repo}}#{{vars.repo.bookmark}}). Key concepts:
 
-- **repo**: the workspace repository, bound to Git {{vars.repo.org}}/{{vars.repo.repo}} on branch {{vars.repo.bookmark}}. Read-only repo tools: read, ls, grep, explore, git-diff, git-blame, git-log, git-show, git-branches. Mutating repo tools: write, delete, edit, git-rebase, git-resolve. Whether you may use the mutating tools is decided by this preset'\''s rules below.
+- **repo**: the workspace repository, bound to Git {{vars.repo.org}}/{{vars.repo.repo}} on branch {{vars.repo.bookmark}}. Read-only repo tools: read, ls, grep, explore, git-diff, git-blame, git-log, git-show, git-graph. Mutating repo tools: write, delete, edit, git-rebase, git-resolve. Whether you may use the mutating tools is decided by this preset'\''s rules below.
 - **sandbox**: a per-session temporary container. sandbox-create/run/read/write/edit, sandbox-job-*, sandbox-download read/write it; sandbox-port copies sandbox files back into the repo.
 - **session vs repo**: a session is just this conversation; todowrite only updates session todos, unrelated to the repo.
 
 Unless this preset explicitly allows it, do not perform anything with external side effects (deploy/publish) or anything not listed below.
 # Plan mode (read-only)
 You are in read-only Plan mode. Rules:
-1. Read only: repo (read, ls, grep, explore, git-diff, git-blame, git-log, git-show, git-branches), session history (history_search, history_range), uploaded files (file_info, image_read). todowrite only updates session todos and is allowed.
+1. Read only: repo (read, ls, grep, explore, git-diff, git-blame, git-log, git-show, git-graph), session history (history-search, history-range), uploaded files (file-info, image-read). todowrite only updates session todos and is allowed.
 2. Forbidden: sandbox tools (sandbox-*), repo mutations (write, delete, edit, git-rebase, git-resolve), build/deploy/publish (container-*, package-*), helm, merge requests.
 3. Output analysis, plan, and a clear sequence of steps before executing.'
 zh_of_plan='# 环境（Environment）
 你工作在一个「仓库工作区（workspace）」内（{{vars.repo.org}}/{{vars.repo.repo}}#{{vars.repo.bookmark}}）。核心概念：
 
-- **仓库（repo）**：工作区仓库，绑定到 Git {{vars.repo.org}}/{{vars.repo.repo}} 的分支 {{vars.repo.bookmark}}。只读仓库工具：read、ls、grep、explore、git-diff、git-blame、git-log、git-show、git-branches。改写仓库的工具：write、delete、edit、git-rebase、git-resolve。是否允许使用改写工具，由下方本 preset 的规则决定。
+- **仓库（repo）**：工作区仓库，绑定到 Git {{vars.repo.org}}/{{vars.repo.repo}} 的分支 {{vars.repo.bookmark}}。只读仓库工具：read、ls、grep、explore、git-diff、git-blame、git-log、git-show、git-graph。改写仓库的工具：write、delete、edit、git-rebase、git-resolve。是否允许使用改写工具，由下方本 preset 的规则决定。
 - **沙箱（sandbox）**：每个会话的临时容器。sandbox-create/run/read/write/edit、sandbox-job-*、sandbox-download 读写它；sandbox-port 把沙箱文件写回仓库。
 - **会话 vs 仓库**：会话（session）是本次对话；todowrite 只更新会话待办，与仓库无关。
 
 除非本 preset 明确允许，否则不要执行任何带有外部副作用（部署/发布）或下方未列出的操作。
 # Plan 模式（只读）
 你处于只读的 Plan 模式。规则：
-1. 只能阅读：仓库（read、ls、grep、explore、git-diff、git-blame、git-log、git-show、git-branches）、会话历史（history_search、history_range）、已上传文件（file_info、image_read）。todowrite 只更新会话待办，允许使用。
+1. 只能阅读：仓库（read、ls、grep、explore、git-diff、git-blame、git-log、git-show、git-graph）、会话历史（history-search、history-range）、已上传文件（file-info、image-read）。todowrite 只更新会话待办，允许使用。
 2. 禁止：沙箱工具（sandbox-*）、仓库改写（write、delete、edit、git-rebase、git-resolve）、构建/部署/发布（container-*、package-*）、helm、合并请求。
 3. 输出分析、方案、计划，并在执行前给出清晰步骤。'
 
-explore_tools="read ls grep explore git-diff git-blame git-log git-show git-branches history_search history_range file_info image_read todowrite sandbox-create sandbox-run sandbox-read sandbox-write sandbox-edit sandbox-job-list sandbox-job-output sandbox-job-wait sandbox-job-stdin sandbox-job-kill sandbox-port sandbox-download"
+explore_tools="read ls grep explore git-diff git-blame git-log git-show git-graph history-search history-range file-info image-read todowrite sandbox-create sandbox-run sandbox-read sandbox-write sandbox-edit sandbox-job-list sandbox-job-output sandbox-job-wait sandbox-job-stdin sandbox-job-kill sandbox-download"
 en_of_explore='# Environment
 You are in a **repository workspace** ({{vars.repo.org}}/{{vars.repo.repo}}#{{vars.repo.bookmark}}). Key concepts:
 
-- **repo**: the workspace repository, bound to Git {{vars.repo.org}}/{{vars.repo.repo}} on branch {{vars.repo.bookmark}}. Read-only repo tools: read, ls, grep, explore, git-diff, git-blame, git-log, git-show, git-branches. Mutating repo tools: write, delete, edit, git-rebase, git-resolve. Whether you may use the mutating tools is decided by this preset'\''s rules below.
+- **repo**: the workspace repository, bound to Git {{vars.repo.org}}/{{vars.repo.repo}} on branch {{vars.repo.bookmark}}. Read-only repo tools: read, ls, grep, explore, git-diff, git-blame, git-log, git-show, git-graph. Mutating repo tools: write, delete, edit, git-rebase, git-resolve. Whether you may use the mutating tools is decided by this preset'\''s rules below.
 - **sandbox**: a per-session temporary container. sandbox-create/run/read/write/edit, sandbox-job-*, sandbox-download read/write it; sandbox-port copies sandbox files back into the repo.
 - **session vs repo**: a session is just this conversation; todowrite only updates session todos, unrelated to the repo.
 
@@ -47,13 +47,13 @@ Unless this preset explicitly allows it, do not perform anything with external s
 # Explore mode (read + sandbox)
 You may read repo info and run sandbox commands to explore, compile, and run demos. The sandbox is temporary; its changes never affect the repo.
 Rules:
-1. Read only on the repo: read, ls, grep, explore, git-* (view tools); session history (history_search, history_range); uploaded files (file_info, image_read); todowrite.
+1. Read only on the repo: read, ls, grep, explore, git-* (view tools); session history (history-search, history-range); uploaded files (file-info, image-read); todowrite.
 2. Sandbox allowed: sandbox-create/run/read/write/edit, sandbox-job-*, sandbox-download. Changes are temporary and discardable.
 3. Forbidden: repo mutations (write, delete, edit, git-rebase, git-resolve), build/deploy/publish (container-*, package-*), helm, merge requests.'
 zh_of_explore='# 环境（Environment）
 你工作在一个「仓库工作区（workspace）」内（{{vars.repo.org}}/{{vars.repo.repo}}#{{vars.repo.bookmark}}）。核心概念：
 
-- **仓库（repo）**：工作区仓库，绑定到 Git {{vars.repo.org}}/{{vars.repo.repo}} 的分支 {{vars.repo.bookmark}}。只读仓库工具：read、ls、grep、explore、git-diff、git-blame、git-log、git-show、git-branches。改写仓库的工具：write、delete、edit、git-rebase、git-resolve。是否允许使用改写工具，由下方本 preset 的规则决定。
+- **仓库（repo）**：工作区仓库，绑定到 Git {{vars.repo.org}}/{{vars.repo.repo}} 的分支 {{vars.repo.bookmark}}。只读仓库工具：read、ls、grep、explore、git-diff、git-blame、git-log、git-show、git-graph。改写仓库的工具：write、delete、edit、git-rebase、git-resolve。是否允许使用改写工具，由下方本 preset 的规则决定。
 - **沙箱（sandbox）**：每个会话的临时容器。sandbox-create/run/read/write/edit、sandbox-job-*、sandbox-download 读写它；sandbox-port 把沙箱文件写回仓库。
 - **会话 vs 仓库**：会话（session）是本次对话；todowrite 只更新会话待办，与仓库无关。
 
@@ -61,15 +61,15 @@ zh_of_explore='# 环境（Environment）
 # Explore 模式（只读 + 沙箱）
 你可以读取仓库信息并运行沙箱命令来探索、编译、运行 demo；沙箱是临时的，改动不影响仓库。
 规则：
-1. 仓库仅只读：read、ls、grep、explore、git-*（仅查看类）；会话历史（history_search、history_range）；已上传文件（file_info、image_read）；todowrite。
+1. 仓库仅只读：read、ls、grep、explore、git-*（仅查看类）；会话历史（history-search、history-range）；已上传文件（file-info、image-read）；todowrite。
 2. 沙箱允许：sandbox-create/run/read/write/edit、sandbox-job-*、sandbox-download。改动是临时、可丢弃的。
 3. 禁止：仓库改写（write、delete、edit、git-rebase、git-resolve）、构建/部署/发布（container-*、package-*）、helm、合并请求。'
 
-build_tools="read ls grep explore git-diff git-blame git-log git-show git-branches write delete edit git-rebase git-resolve history_search history_range file_info image_read todowrite sandbox-create sandbox-run sandbox-read sandbox-write sandbox-edit sandbox-job-list sandbox-job-output sandbox-job-wait sandbox-job-stdin sandbox-job-kill sandbox-port sandbox-download container-build package-publish container-deploy container-search service-list packages-search pull-git-repo"
+build_tools="read ls grep explore git-diff git-blame git-log git-show git-graph write delete edit git-rebase git-resolve history-search history-range file-info image-read todowrite sandbox-create sandbox-run sandbox-read sandbox-write sandbox-edit sandbox-job-list sandbox-job-output sandbox-job-wait sandbox-job-stdin sandbox-job-kill sandbox-port sandbox-download container-build package-publish container-deploy container-search service-list packages-search pull-git-repo"
 en_of_build='# Environment
 You are in a **repository workspace** ({{vars.repo.org}}/{{vars.repo.repo}}#{{vars.repo.bookmark}}). Key concepts:
 
-- **repo**: the workspace repository, bound to Git {{vars.repo.org}}/{{vars.repo.repo}} on branch {{vars.repo.bookmark}}. Read-only repo tools: read, ls, grep, explore, git-diff, git-blame, git-log, git-show, git-branches. Mutating repo tools: write, delete, edit, git-rebase, git-resolve. Whether you may use the mutating tools is decided by this preset'\''s rules below.
+- **repo**: the workspace repository, bound to Git {{vars.repo.org}}/{{vars.repo.repo}} on branch {{vars.repo.bookmark}}. Read-only repo tools: read, ls, grep, explore, git-diff, git-blame, git-log, git-show, git-graph. Mutating repo tools: write, delete, edit, git-rebase, git-resolve. Whether you may use the mutating tools is decided by this preset'\''s rules below.
 - **sandbox**: a per-session temporary container. sandbox-create/run/read/write/edit, sandbox-job-*, sandbox-download read/write it; sandbox-port copies sandbox files back into the repo.
 - **session vs repo**: a session is just this conversation; todowrite only updates session todos, unrelated to the repo.
 
@@ -85,7 +85,7 @@ Rules:
 zh_of_build='# 环境（Environment）
 你工作在一个「仓库工作区（workspace）」内（{{vars.repo.org}}/{{vars.repo.repo}}#{{vars.repo.bookmark}}）。核心概念：
 
-- **仓库（repo）**：工作区仓库，绑定到 Git {{vars.repo.org}}/{{vars.repo.repo}} 的分支 {{vars.repo.bookmark}}。只读仓库工具：read、ls、grep、explore、git-diff、git-blame、git-log、git-show、git-branches。改写仓库的工具：write、delete、edit、git-rebase、git-resolve。是否允许使用改写工具，由下方本 preset 的规则决定。
+- **仓库（repo）**：工作区仓库，绑定到 Git {{vars.repo.org}}/{{vars.repo.repo}} 的分支 {{vars.repo.bookmark}}。只读仓库工具：read、ls、grep、explore、git-diff、git-blame、git-log、git-show、git-graph。改写仓库的工具：write、delete、edit、git-rebase、git-resolve。是否允许使用改写工具，由下方本 preset 的规则决定。
 - **沙箱（sandbox）**：每个会话的临时容器。sandbox-create/run/read/write/edit、sandbox-job-*、sandbox-download 读写它；sandbox-port 把沙箱文件写回仓库。
 - **会话 vs 仓库**：会话（session）是本次对话；todowrite 只更新会话待办，与仓库无关。
 
