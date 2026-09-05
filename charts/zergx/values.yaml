@@ -138,7 +138,7 @@ services:
     port: 80
     containerPort: 8080
     # Flutter web client recreating the platform UI (nginx + built assets).
-    image: jj-lab.zergx.svc.cluster.local/root/zergx-flutter:dev-09051307
+    image: jj-lab.zergx.svc.cluster.local/root/zergx-flutter:dev-09051312
   platform:
     enabled: true
     port: 80

@@ -54,7 +54,7 @@ builder:
 
 services:
   flutter:
-    image: jj-lab.temp.svc.cluster.local/root/zergx-flutter:dev-09051307
+    image: jj-lab.temp.svc.cluster.local/root/zergx-flutter:dev-09051312
   platform:
     image: jj-lab.temp.svc.cluster.local/root/zergx-platform:dev-09051046
   artifact:
