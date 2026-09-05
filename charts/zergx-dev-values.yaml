@@ -56,7 +56,7 @@ services:
   flutter:
     image: jj-lab.temp.svc.cluster.local/root/zergx-flutter:dev-09051312
   platform:
-    image: jj-lab.temp.svc.cluster.local/root/zergx-platform:dev-09051046
+    image: jj-lab.temp.svc.cluster.local/root/zergx-platform:dev-09051441
   artifact:
     image: jj-lab.temp.svc.cluster.local/root/go-registry@sha256:78574b905f9fc1c4ce6fc7209e2a04b817e5447836af2af04cf6d79ac73ba550
   jjlab:
@@ -68,7 +68,7 @@ services:
   wdbidi-extension:
     image: jj-lab.temp.svc.cluster.local/root/zergx-wdbidi-extension:dev-09041917
   agent:
-    image: jj-lab.temp.svc.cluster.local/root/zergx-agent:dev-09051406
+    image: jj-lab.temp.svc.cluster.local/root/zergx-agent:dev-09051441
   memory-tools:
     image: jj-lab.temp.svc.cluster.local/root/zergx-memory-extension:dev-09051246
 infra:
